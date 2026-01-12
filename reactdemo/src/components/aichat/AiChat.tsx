@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { aiApi, conversationApi, apiKeyApi } from '../../services/api';
 import './AiChat.css';
 
@@ -39,14 +39,7 @@ interface AiChatProps {
 }
 
 const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: '你好！我是智能助手小智，有什么可以帮助你的吗？',
-      role: 'assistant',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -57,7 +50,11 @@ const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
 
   // 会话列表与当前会话 ID
   const [conversations, setConversations] = useState<Array<{ id: number; title: string }>>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(() => {
+    // 从localStorage恢复上次的会话ID
+    const saved = localStorage.getItem('currentConversationId');
+    return saved ? parseInt(saved, 10) : null;
+  });
   // 初始化语音识别
   useEffect(() => {
     // 检查浏览器是否支持 Web Speech API
@@ -144,12 +141,8 @@ const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  useEffect(() => {
-    loadConversations();
-  }, []);
-
   // 选中会话后加载历史消息
-  const loadMessagesForConversation = async (id: number) => {
+  const loadMessagesForConversation = useCallback(async (id: number) => {
     try {
       const res = await conversationApi.messages(id);
       if (res.data.code === 200) {
@@ -161,11 +154,43 @@ const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
         }));
         setMessages(msgs);
         setCurrentConversationId(id);
+        // 保存到localStorage
+        localStorage.setItem('currentConversationId', String(id));
       }
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  // 刷新后自动恢复上次的会话 - 只在组件首次加载且会话列表有数据时执行一次
+  useEffect(() => {
+    const savedId = localStorage.getItem('currentConversationId');
+    if (savedId && conversations.length > 0) {
+      const conversationId = parseInt(savedId, 10);
+      const exists = conversations.find(c => c.id === conversationId);
+      if (exists) {
+        loadMessagesForConversation(conversationId);
+      } else {
+        // 如果保存的会话已被删除，清除localStorage
+        localStorage.removeItem('currentConversationId');
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+    } else if (conversations.length > 0 && !savedId) {
+      // 没有保存的会话，显示欢迎消息
+      setMessages([{
+        id: '1',
+        content: '你好！我是智能助手小智，有什么可以帮助你的吗？',
+        role: 'assistant',
+        timestamp: new Date(),
+      }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations.length]); // 只依赖会话列表的长度变化，而不是整个数组
 
   // 创建会话
   const handleCreateConversation = async () => {
@@ -174,6 +199,18 @@ const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
       const res = await conversationApi.create(title);
       if (res.data.code === 200) {
         await loadConversations();
+        // 自动切换到新创建的会话
+        const newConv = res.data.data;
+        if (newConv && newConv.id) {
+          setCurrentConversationId(newConv.id);
+          localStorage.setItem('currentConversationId', String(newConv.id));
+          setMessages([{
+            id: '1',
+            content: '你好！我是智能助手小智，有什么可以帮助你的吗？',
+            role: 'assistant',
+            timestamp: new Date(),
+          }]);
+        }
       } else {
         alert('创建失败: ' + res.data.msg);
       }
@@ -190,6 +227,10 @@ const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
       if (res.data.code === 200) {
         setMessages([]);
         setCurrentConversationId(null);
+        // 如果删除的是当前会话，清除localStorage
+        if (currentConversationId === id) {
+          localStorage.removeItem('currentConversationId');
+        }
         await loadConversations();
       } else {
         alert('删除失败: ' + res.data.msg);
@@ -237,9 +278,21 @@ const AiChat: React.FC<AiChatProps> = ({ isOpen, onClose }) => {
       const { code, data, message } = response.data;
 
       if (code === 200) {
+        // 后端返回的data现在是一个对象：{conversationId: xxx, response: "AI回复"}
+        const conversationId = data.conversationId;
+        const aiResponse = data.response;
+        
+        // 如果之前没有conversationId，现在设置它
+        if (!currentConversationId && conversationId) {
+          setCurrentConversationId(conversationId);
+          localStorage.setItem('currentConversationId', String(conversationId));
+          // 重新加载会话列表以显示新创建的会话
+          loadConversations();
+        }
+        
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: data,
+          content: aiResponse,
           role: 'assistant',
           timestamp: new Date(),
         };

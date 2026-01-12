@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.example.springbootdemo.entity.Conversation;
 import com.example.springbootdemo.service.ConversationService;
@@ -147,5 +148,32 @@ public class AiChatService {
         }
 
         return aiMessage.text();
+    }
+
+    /**
+     * 聊天并返回conversationId和AI回复
+     * @param conversationId 会话ID（可为null）
+     * @param userMessage 用户消息
+     * @param userId 用户ID
+     * @return Map包含conversationId和response
+     */
+    public Map<String, Object> chatWithConversation(Long conversationId, String userMessage, Long userId) {
+        String response = chat(conversationId, userMessage, userId);
+        
+        // 如果conversationId为null，需要查找刚创建的会话
+        if (conversationId == null) {
+            // 通过最新的消息记录找到对应的conversationId
+            QueryWrapper<MessageRecord> qw = new QueryWrapper<>();
+            qw.eq("content", userMessage).eq("role", "user").orderByDesc("created_at").last("LIMIT 1");
+            MessageRecord lastMsg = messageRecordMapper.selectOne(qw);
+            if (lastMsg != null) {
+                conversationId = lastMsg.getConversationId();
+            }
+        }
+        
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("conversationId", conversationId);
+        result.put("response", response);
+        return result;
     }
 }

@@ -24,10 +24,10 @@ public class AiChatController {
     /**
      * AI 聊天接口
      * @param requestBody 包含用户消息的请求体 {"message": "用户消息", "conversationId": 123}
-     * @return AI 的回复
+     * @return AI 的回复（包含conversationId和回复内容）
      */
     @PostMapping("/chat")
-    public Result<String> chat(@RequestHeader(value = "Authorization", required = false) String authorization,
+    public Result<Map<String, Object>> chat(@RequestHeader(value = "Authorization", required = false) String authorization,
                                @RequestHeader(value = "token", required = false) String tokenHeader,
                                @RequestBody Map<String, Object> requestBody) {
         try {
@@ -63,8 +63,8 @@ public class AiChatController {
                 }
             }
 
-            String aiResponse = aiChatService.chat(conversationId, userMessage, userId);
-            return Result.success(aiResponse);
+            Map<String, Object> result = aiChatService.chatWithConversation(conversationId, userMessage, userId);
+            return Result.success(result);
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("AI 服务暂时不可用，请稍后再试: " + e.getMessage());

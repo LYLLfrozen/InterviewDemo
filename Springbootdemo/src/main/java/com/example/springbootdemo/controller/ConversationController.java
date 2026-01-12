@@ -81,15 +81,21 @@ public class ConversationController {
             }
         }
 
-        if (userId == null) {
-            return Result.success(new ArrayList<>());
+        // 如果有userId，返回该用户的会话；否则返回所有会话（方便测试）
+        List<Conversation> list;
+        if (userId != null) {
+            list = conversationMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Conversation>()
+                            .eq("user_id", userId)
+                            .orderByDesc("updated_at")
+            );
+        } else {
+            // 没有userId时返回所有会话（包括user_id为null的）
+            list = conversationMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Conversation>()
+                            .orderByDesc("updated_at")
+            );
         }
-
-        List<Conversation> list = conversationMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Conversation>()
-                        .eq("user_id", userId)
-                        .orderByDesc("updated_at")
-        );
         return Result.success(list);
     }
 

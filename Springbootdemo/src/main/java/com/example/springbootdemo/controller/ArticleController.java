@@ -38,22 +38,25 @@ public class ArticleController {
                 token = tokenHeader;
             }
 
+            String userId = null;
             if (token != null) {
-                String userId = null;
                 try {
                     Object o = stringRedisTemplate.opsForValue().get("login:token:" + token);
                     if (o != null) userId = o.toString();
                 } catch (Exception ex) {
-                    // 忽略 Redis 读取失败，继续返回全部或空列表
-                }
-
-                if (userId != null) {
-                    List<Article> articles = articleService.getArticlesByUser(userId);
-                    return Result.success(articles);
+                    // 忽略 Redis 读取失败，继续返回全部文章
                 }
             }
 
-            // 未提供有效 token 则返回全部文章（或根据需求改为返回空）
+            // 如果有userId，尝试获取该用户的文章；如果为空则返回所有文章
+            if (userId != null) {
+                List<Article> userArticles = articleService.getArticlesByUser(userId);
+                if (userArticles != null && !userArticles.isEmpty()) {
+                    return Result.success(userArticles);
+                }
+            }
+
+            // 没有userId或用户没有文章时，返回所有文章
             List<Article> articles = articleService.getAllArticles();
             return Result.success(articles);
         } catch (Exception e) {
