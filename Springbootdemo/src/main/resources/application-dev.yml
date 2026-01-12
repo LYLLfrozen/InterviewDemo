@@ -1,0 +1,23 @@
+server:
+  address: 0.0.0.0
+  servlet:
+    context-path: /api
+  port: 8080
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/0813-demo?allowPublicKeyRetrieval=true&useUnicode=true&useSSL=false&characterEncoding=utf8
+    username: root
+    password: root
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+# langchain4j 配置已移除
+# API Key 现在通过前端动态配置，存储在 Redis 中
+# 请使用 POST /api/api-key/dashscope 接口设置 API Key

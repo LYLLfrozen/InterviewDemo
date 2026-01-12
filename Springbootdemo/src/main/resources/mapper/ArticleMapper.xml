@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springbootdemo.mapper.ArticleMapper">
+
+    <resultMap id="ArticleResultMap" type="com.example.springbootdemo.entity.Article">
+        <id column="id" property="id" />
+        <result column="title" property="title" />
+        <result column="content" property="content" />
+        <result column="author" property="author" />
+        <result column="category" property="category" />
+        <result column="position" property="position" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <insert id="insertArticle" parameterType="com.example.springbootdemo.entity.Article">
+        INSERT INTO article (id, title, content, author, category, position, create_time, update_time)
+        VALUES (#{id}, #{title}, #{content}, #{author}, #{category}, #{position}, #{createTime}, #{updateTime})
+    </insert>
+
+    <select id="selectArticleById" parameterType="string" resultMap="ArticleResultMap">
+        SELECT id, title, content, author, category, position, create_time, update_time
+        FROM article
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectAllArticles" resultMap="ArticleResultMap">
+        SELECT id, title, content, author, category, position, create_time, update_time
+        FROM article
+        ORDER BY position ASC, create_time DESC
+    </select>
+
+    <select id="selectArticlesByUser" parameterType="string" resultMap="ArticleResultMap">
+        SELECT id, title, content, author, category, position, create_time, update_time
+        FROM article
+        WHERE author = #{userId}
+        ORDER BY position ASC, create_time DESC
+    </select>
+
+    <update id="updateArticle" parameterType="com.example.springbootdemo.entity.Article">
+        UPDATE article
+        SET title = #{title},
+            content = #{content},
+            author = #{author},
+            category = #{category},
+            position = #{position},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteArticle" parameterType="string">
+        DELETE FROM article WHERE id = #{id}
+    </delete>
+
+</mapper>

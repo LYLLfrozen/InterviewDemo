@@ -1,0 +1,476 @@
+.main-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.main-header h1 {
+  margin: 0;
+  color: #667eea;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.ai-chat-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.ai-chat-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(238, 90, 36, 0.4);
+}
+
+.create-btn {
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+.create-btn:hover {
+  background: #5568d3;
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 20px;
+  height: calc(100vh - 140px);
+}
+
+/* 文章列表 */
+.article-list {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.article-list h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.article-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.article-list li {
+  border-bottom: 1px solid #eee;
+  padding: 15px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.article-list li:last-child {
+  border-bottom: none;
+}
+
+.article-list li.active .article-item {
+  background: #f0f4ff;
+}
+
+.article-item {
+  flex: 1;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 5px;
+  transition: background 0.3s;
+}
+
+.article-item:hover {
+  background: #f8f9fa;
+}
+
+.article-item h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.article-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+}
+
+.delete-btn {
+  padding: 5px 15px;
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.3s;
+}
+
+.delete-btn:hover {
+  background: #ee5a6f;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+/* 文章详情 */
+.article-detail {
+  background: white;
+  border-radius: 10px;
+  padding: 30px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.article-detail h2 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 28px;
+}
+
+.article-detail .article-meta {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.article-detail .article-meta span {
+  margin-right: 20px;
+}
+
+.article-content {
+  line-height: 1.8;
+  color: #555;
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+
+.no-selection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 18px;
+}
+
+/* 创建文章弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  width: 600px;
+  max-width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+/* 新增：分类下拉框样式 */
+.form-group select,
+.category-select {
+  width: 220px;
+  max-width: 100%;
+  padding: 10px 36px 10px 12px; /* 给右侧箭头留空 */
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* 简单的下拉箭头视觉效果（双重渐变） */
+  background-image: linear-gradient(45deg, transparent 50%, #999 50%),
+                    linear-gradient(135deg, #999 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 12px) calc(1em + 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.form-group select:focus,
+.category-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+}
+
+/* 分类输入 + 添加按钮在一行 */
+.category-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.new-category-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 小屏设备优化 */
+@media (max-width: 480px) {
+  .form-group select,
+  .category-select {
+    width: 100%;
+  }
+  .category-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .category-add-btn {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-group textarea {
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.form-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.form-actions button[type="button"] {
+  background: #e0e0e0;
+  color: #555;
+}
+
+.form-actions button[type="button"]:hover {
+  background: #d0d0d0;
+}
+
+.form-actions button[type="submit"] {
+  background: #667eea;
+  color: white;
+}
+
+.form-actions button[type="submit"]:hover {
+  background: #5568d3;
+}
+
+/* Responsive: mobile adjustments */
+@media (max-width: 768px) {
+  .main-page {
+    padding: 12px;
+  }
+
+  .main-header {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .create-btn {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  .main-content {
+    display: block;
+    height: auto;
+    gap: 12px;
+  }
+
+  .article-list {
+    max-height: 40vh;
+    padding: 12px;
+  }
+
+  .article-list li {
+    padding: 12px 0;
+  }
+
+  .article-item h3 {
+    font-size: 18px;
+  }
+
+  .article-detail {
+    padding: 18px;
+    /* 在移动端当列表被隐藏时，让详情允许占用更多高度并滚动 */
+    max-height: calc(100vh - 110px);
+  }
+
+  .article-detail h2 {
+    font-size: 20px;
+  }
+
+  .modal-content {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .back-btn {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+}
+
+/* 添加分类和编辑相关按钮样式，确保编辑表单遮盖文章渲染内容并清晰可见 */
+.article-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.move-btn {
+  padding: 6px 8px;
+  background: #f1f3f8;
+  border: 1px solid #e6e9f5;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.move-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edit-btn {
+  padding: 6px 8px;
+  background: linear-gradient(135deg, #ffd166 0%, #ffad33 100%);
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.edit-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* 确保编辑表单位于文章内容之上，不被 .article-content 覆盖 */
+.edit-form {
+  position: relative; /* allow z-index */
+  z-index: 50;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+/* 当编辑状态激活时，让 article-content 半透明，以免覆盖输入控件（移动端尤为重要） */
+.article-detail.editing .article-content {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* 添加分类按钮样式 */
+.category-add-btn {
+  margin-left: 8px;
+  padding: 6px 10px;
+  background: #6ee7b7;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.category-add-btn:hover {
+  opacity: 0.95;
+}
+
+/* 确保编辑表单内的 input/textarea 在覆盖模式下仍可交互 */
+.article-detail.editing .edit-form {
+  pointer-events: auto;
+}
