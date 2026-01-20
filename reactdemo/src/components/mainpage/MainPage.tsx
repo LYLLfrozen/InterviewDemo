@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import AiChat from '../aichat/AiChat';
 import './MainPage.css';
@@ -15,6 +16,7 @@ interface Article {
 }
 
 const MainPage: React.FC = () => {
+  const navigate = useNavigate();
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -235,6 +237,12 @@ const MainPage: React.FC = () => {
       <div className="main-header">
         <h1>面试系统</h1>
         <div className="header-actions">
+          <button 
+            className="shop-btn"
+            onClick={() => navigate('/shop/products')}
+          >
+            🛒 商品中心
+          </button>
           <button 
             className="ai-chat-btn"
             onClick={() => setShowAiChat(true)}

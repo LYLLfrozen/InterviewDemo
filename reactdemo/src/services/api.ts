@@ -124,4 +124,66 @@ export const conversationApi = {
   messages: (id: number) => api.get(`/conversation/${id}/messages`),
 };
 
+// 商品相关 API
+export const productApi = {
+  // 管理端 - 获取所有商品
+  getAllProducts: () => {
+    return api.get('/admin/products');
+  },
+  
+  // 管理端 - 分页查询所有商品
+  getProductsByPage: (pageNum: number, pageSize: number) => {
+    return api.get('/admin/products/page', {
+      params: { pageNum, pageSize }
+    });
+  },
+  
+  // 管理端 - 根据ID获取商品
+  getProductById: (id: number) => {
+    return api.get(`/admin/products/${id}`);
+  },
+  
+  // 管理端 - 新增商品
+  createProduct: (productData: any) => {
+    return api.post('/admin/products', productData);
+  },
+  
+  // 管理端 - 修改商品
+  updateProduct: (id: number, productData: any) => {
+    return api.put(`/admin/products/${id}`, productData);
+  },
+  
+  // 管理端 - 删除商品
+  deleteProduct: (id: number) => {
+    return api.delete(`/admin/products/${id}`);
+  },
+  
+  // 管理端 - 上架商品
+  onShelf: (id: number) => {
+    return api.put(`/admin/products/${id}/on-shelf`);
+  },
+  
+  // 管理端 - 下架商品
+  offShelf: (id: number) => {
+    return api.put(`/admin/products/${id}/off-shelf`);
+  },
+  
+  // 用户端 - 获取上架商品列表
+  getOnShelfProducts: () => {
+    return api.get('/products');
+  },
+  
+  // 用户端 - 分页查询上架商品
+  getOnShelfProductsByPage: (pageNum: number, pageSize: number) => {
+    return api.get('/products/page', {
+      params: { pageNum, pageSize }
+    });
+  },
+  
+  // 用户端 - 获取商品详情（仅上架）
+  getOnShelfProductById: (id: number) => {
+    return api.get(`/products/${id}`);
+  }
+};
+
 export default api;

@@ -25,6 +25,22 @@
   gap: 12px;
 }
 
+.shop-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.shop-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(56, 158, 13, 0.4);
+}
+
 .ai-chat-btn {
   padding: 10px 20px;
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
