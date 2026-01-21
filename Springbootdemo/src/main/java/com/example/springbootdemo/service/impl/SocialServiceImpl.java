@@ -1,0 +1,209 @@
+package com.example.springbootdemo.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.example.springbootdemo.entity.Friend;
+import com.example.springbootdemo.entity.FriendRequest;
+import com.example.springbootdemo.entity.Message;
+import com.example.springbootdemo.mapper.FriendMapper;
+import com.example.springbootdemo.mapper.FriendRequestMapper;
+import com.example.springbootdemo.mapper.MessageMapper;
+import com.example.springbootdemo.service.SocialService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * 社交功能服务实现类
+ */
+@Service
+public class SocialServiceImpl implements SocialService {
+
+    @Autowired
+    private FriendRequestMapper friendRequestMapper;
+
+    @Autowired
+    private FriendMapper friendMapper;
+
+    @Autowired
+    private MessageMapper messageMapper;
+
+    @Override
+    @Transactional
+    public void sendFriendRequest(Long fromUserId, Long toUserId) {
+        if (fromUserId.equals(toUserId)) {
+            throw new RuntimeException("不能向自己发送好友请求");
+        }
+
+        // 检查是否已经是好友
+        if (isFriend(fromUserId, toUserId)) {
+            throw new RuntimeException("已经是好友关系");
+        }
+
+        // 检查是否已经发送过待处理的请求
+        QueryWrapper<FriendRequest> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("from_user_id", fromUserId)
+                   .eq("to_user_id", toUserId)
+                   .eq("status", 0);
+        FriendRequest existingRequest = friendRequestMapper.selectOne(queryWrapper);
+        if (existingRequest != null) {
+            throw new RuntimeException("已经发送过好友请求，请等待对方处理");
+        }
+
+        // 创建好友请求
+        FriendRequest friendRequest = new FriendRequest();
+        friendRequest.setFromUserId(fromUserId);
+        friendRequest.setToUserId(toUserId);
+        friendRequest.setStatus(0);
+        friendRequest.setCreatedAt(LocalDateTime.now());
+        friendRequest.setUpdatedAt(LocalDateTime.now());
+        friendRequestMapper.insert(friendRequest);
+    }
+
+    @Override
+    @Transactional
+    public void acceptFriendRequest(Long requestId, Long userId) {
+        FriendRequest friendRequest = friendRequestMapper.selectById(requestId);
+        if (friendRequest == null) {
+            throw new RuntimeException("好友请求不存在");
+        }
+        if (!friendRequest.getToUserId().equals(userId)) {
+            throw new RuntimeException("无权处理此请求");
+        }
+        if (friendRequest.getStatus() != 0) {
+            throw new RuntimeException("请求已被处理");
+        }
+
+        // 更新请求状态
+        friendRequest.setStatus(1);
+        friendRequest.setUpdatedAt(LocalDateTime.now());
+        friendRequestMapper.updateById(friendRequest);
+
+        // 创建双向好友关系
+        Friend friend1 = new Friend();
+        friend1.setUserId(friendRequest.getFromUserId());
+        friend1.setFriendId(friendRequest.getToUserId());
+        friend1.setCreatedAt(LocalDateTime.now());
+        friendMapper.insert(friend1);
+
+        Friend friend2 = new Friend();
+        friend2.setUserId(friendRequest.getToUserId());
+        friend2.setFriendId(friendRequest.getFromUserId());
+        friend2.setCreatedAt(LocalDateTime.now());
+        friendMapper.insert(friend2);
+    }
+
+    @Override
+    @Transactional
+    public void rejectFriendRequest(Long requestId, Long userId) {
+        FriendRequest friendRequest = friendRequestMapper.selectById(requestId);
+        if (friendRequest == null) {
+            throw new RuntimeException("好友请求不存在");
+        }
+        if (!friendRequest.getToUserId().equals(userId)) {
+            throw new RuntimeException("无权处理此请求");
+        }
+        if (friendRequest.getStatus() != 0) {
+            throw new RuntimeException("请求已被处理");
+        }
+
+        // 更新请求状态
+        friendRequest.setStatus(2);
+        friendRequest.setUpdatedAt(LocalDateTime.now());
+        friendRequestMapper.updateById(friendRequest);
+    }
+
+    @Override
+    public List<FriendRequest> getPendingFriendRequests(Long userId) {
+        QueryWrapper<FriendRequest> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("to_user_id", userId)
+                   .eq("status", 0)
+                   .orderByDesc("created_at");
+        return friendRequestMapper.selectList(queryWrapper);
+    }
+
+    @Override
+    public List<FriendRequest> getSentFriendRequests(Long userId) {
+        QueryWrapper<FriendRequest> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("from_user_id", userId)
+                   .orderByDesc("created_at");
+        return friendRequestMapper.selectList(queryWrapper);
+    }
+
+    @Override
+    public List<Friend> getFriendList(Long userId) {
+        QueryWrapper<Friend> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", userId)
+                   .orderByDesc("created_at");
+        return friendMapper.selectList(queryWrapper);
+    }
+
+    @Override
+    public boolean isFriend(Long userId, Long friendId) {
+        QueryWrapper<Friend> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", userId)
+                   .eq("friend_id", friendId);
+        return friendMapper.selectCount(queryWrapper) > 0;
+    }
+
+    @Override
+    @Transactional
+    public Message sendMessage(Long fromUserId, Long toUserId, String content) {
+        // 检查是否为好友关系
+        if (!isFriend(fromUserId, toUserId)) {
+            throw new RuntimeException("只能向好友发送消息");
+        }
+
+        Message message = new Message();
+        message.setFromUserId(fromUserId);
+        message.setToUserId(toUserId);
+        message.setContent(content);
+        message.setIsRead(0);
+        message.setTimestamp(LocalDateTime.now());
+        messageMapper.insert(message);
+        return message;
+    }
+
+    @Override
+    public List<Message> getChatMessages(Long userId, Long friendId, Integer limit) {
+        if (limit == null || limit <= 0) {
+            limit = 50;
+        }
+
+        QueryWrapper<Message> queryWrapper = new QueryWrapper<>();
+        queryWrapper.and(wrapper -> wrapper
+                .and(w -> w.eq("from_user_id", userId).eq("to_user_id", friendId))
+                .or(w -> w.eq("from_user_id", friendId).eq("to_user_id", userId))
+        ).orderByDesc("timestamp")
+         .last("LIMIT " + limit);
+        
+        List<Message> messages = messageMapper.selectList(queryWrapper);
+        // 反转列表，使最新的消息在最后
+        java.util.Collections.reverse(messages);
+        return messages;
+    }
+
+    @Override
+    public int getUnreadCount(Long userId) {
+        QueryWrapper<Message> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("to_user_id", userId)
+                   .eq("is_read", 0);
+        return messageMapper.selectCount(queryWrapper).intValue();
+    }
+
+    @Override
+    @Transactional
+    public void markAsRead(Long messageId, Long userId) {
+        Message message = messageMapper.selectById(messageId);
+        if (message == null) {
+            throw new RuntimeException("消息不存在");
+        }
+        if (!message.getToUserId().equals(userId)) {
+            throw new RuntimeException("无权操作此消息");
+        }
+        message.setIsRead(1);
+        messageMapper.updateById(message);
+    }
+}

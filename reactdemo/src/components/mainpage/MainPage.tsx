@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import AiChat from '../aichat/AiChat';
+import SocialPage from '../social/SocialPage';
 import './MainPage.css';
 
 interface Article {
@@ -29,14 +30,14 @@ const MainPage: React.FC = () => {
     category: '',
   });
   const [isMobile, setIsMobile] = useState(false);
+  const [showSocial, setShowSocial] = useState(false);
 
-  // 新增：分类相关
+  // 分类相关
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
 
-  // 新增：编辑模式
+  // 编辑模式
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
-  // 新增：已选中的分类（空字符串表示尚未选择，先展示分类列表）
   const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   // 加载文章列表
@@ -45,11 +46,10 @@ const MainPage: React.FC = () => {
     try {
       const response = await api.get('/mainPage');
       const { code, data } = response.data;
-      
+
       if (code === 200) {
         const list: Article[] = data || [];
         setArticles(list);
-        // 从文章中提取分类
         const cats = Array.from(new Set(list.map(a => a.category || '未分类')));
         setCategories(cats);
       } else {
@@ -62,12 +62,11 @@ const MainPage: React.FC = () => {
     }
   };
 
-  // 组件挂载时加载文章列表
   useEffect(() => {
     loadArticles();
   }, []);
 
-  // 响应式：检测是否为移动端视口
+  // 响应式：移动端检测
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     handleResize();
@@ -78,7 +77,6 @@ const MainPage: React.FC = () => {
   // 选择文章
   const handleSelectArticle = async (articleId: string) => {
     try {
-      // 如果当前正在编辑且编辑对象就是要打开的文章，则直接使用本地编辑对象，避免被远程加载覆盖
       if (editingArticle && editingArticle.id === articleId) {
         setSelectedArticle(editingArticle);
         return;
@@ -86,9 +84,9 @@ const MainPage: React.FC = () => {
 
       const response = await api.get(`/mainPage/${articleId}`);
       const { code, data } = response.data;
-      
+
       if (code === 200) {
-        setSelectedArticle(data);
+        setSelectedArticle(data as Article);
         setEditingArticle(null);
       } else {
         alert('加载文章失败');
@@ -102,7 +100,7 @@ const MainPage: React.FC = () => {
   // 创建文章
   const handleCreateArticle = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newArticle.title.trim() || !newArticle.content.trim()) {
       alert('标题和内容不能为空');
       return;
@@ -111,12 +109,12 @@ const MainPage: React.FC = () => {
     try {
       const response = await api.post('/mainPage', newArticle);
       const { code } = response.data;
-      
+
       if (code === 200) {
         alert('文章创建成功！');
         setShowCreateForm(false);
         setNewArticle({ title: '', content: '', author: '', category: '' });
-        loadArticles(); // 重新加载文章列表
+        loadArticles();
       } else {
         alert('创建文章失败');
       }
@@ -128,19 +126,15 @@ const MainPage: React.FC = () => {
 
   // 删除文章
   const handleDeleteArticle = async (articleId: string) => {
-    if (!confirm('确定要删除这篇文章吗？')) {
-      return;
-    }
+    if (!confirm('确定要删除这篇文章吗？')) return;
 
     try {
       const response = await api.delete(`/mainPage/${articleId}`);
       const { code } = response.data;
-      
+
       if (code === 200) {
         alert('文章删除成功！');
-        if (selectedArticle?.id === articleId) {
-          setSelectedArticle(null);
-        }
+        if (selectedArticle?.id === articleId) setSelectedArticle(null);
         loadArticles();
       } else {
         alert('删除文章失败');
@@ -151,30 +145,22 @@ const MainPage: React.FC = () => {
     }
   };
 
-  // 新增：创建分类（仅前端保留分类列表，通过创建/编辑文章提交 category 字段到后端）
+  // 创建分类
   const handleCreateCategory = (catParam?: string) => {
     const cat = (catParam !== undefined ? catParam : newCategory).trim();
     if (!cat) return '';
-    if (!categories.includes(cat)) {
-      setCategories(prev => [...prev, cat]);
-    }
-    // 清空输入框
+    if (!categories.includes(cat)) setCategories(prev => [...prev, cat]);
     setNewCategory('');
-    // 返回创建的分类，方便调用方使用
     return cat;
   };
 
-  // 新增：进入编辑模式
+  // 编辑文章
   const handleEditArticle = (article: Article) => {
     setEditingArticle({ ...article });
   };
 
-  // 新增：取消编辑
-  const handleCancelEdit = () => {
-    setEditingArticle(null);
-  };
+  const handleCancelEdit = () => setEditingArticle(null);
 
-  // 新增：保存编辑（调用后端 PUT）
   const handleSaveEdit = async () => {
     if (!editingArticle) return;
     if (!editingArticle.title?.trim() || !editingArticle.content?.trim()) {
@@ -195,7 +181,7 @@ const MainPage: React.FC = () => {
       const { code, data } = response.data;
       if (code === 200) {
         alert('保存成功');
-        setSelectedArticle(data);
+        setSelectedArticle(data as Article);
         setEditingArticle(null);
         loadArticles();
       } else {
@@ -207,7 +193,7 @@ const MainPage: React.FC = () => {
     }
   };
 
-  // 新增：移动文章位置（向上/向下），通过与相邻文章交换 position 实现
+  // 移动文章
   const handleMoveArticle = async (articleId: string, direction: 'up' | 'down') => {
     const idx = articles.findIndex(a => a.id === articleId);
     if (idx === -1) return;
@@ -216,12 +202,10 @@ const MainPage: React.FC = () => {
 
     const a = articles[idx];
     const b = articles[targetIdx];
-
     const posA = a.position ?? (idx + 1);
     const posB = b.position ?? (targetIdx + 1);
 
     try {
-      // 先更新 a 为临时位置，避免冲突（将 a -> -1），再将 b -> posA，再将 a -> posB
       await api.put(`/mainPage/${a.id}`, { position: -1 });
       await api.put(`/mainPage/${b.id}`, { position: posA });
       await api.put(`/mainPage/${a.id}`, { position: posB });
@@ -234,217 +218,167 @@ const MainPage: React.FC = () => {
 
   return (
     <div className="main-page">
+      {/* Header */}
       <div className="main-header">
-        <h1>面试系统</h1>
+        <h1>GU系统</h1>
         <div className="header-actions">
-          <button 
-            className="shop-btn"
-            onClick={() => navigate('/shop/products')}
-          >
-            🛒 商品中心
-          </button>
-          <button 
-            className="ai-chat-btn"
-            onClick={() => setShowAiChat(true)}
-          >
-            🤖 AI助手
-          </button>
-          <button 
-            className="create-btn"
-            onClick={() => setShowCreateForm(true)}
-          >
-            + 新建文章
-          </button>
+          <button className="shop-btn" onClick={() => navigate('/shop/products')}>🛒 商品中心</button>
+          <button className="ai-chat-btn" onClick={() => setShowAiChat(true)}>🤖 AI助手</button>
+          <button className="social-btn" onClick={() => setShowSocial(prev => !prev)}>👥 社交</button>
+          <button className="create-btn" onClick={() => setShowCreateForm(true)}>+ 新建文章</button>
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="main-content">
-        {/* 左侧：先展示分类，点击分类后展示该分类下的文章（移动端：选择文章时隐藏列表） */}
-        {(!isMobile || !selectedArticle) && (
-          <div className="article-list">
-            <h2>文章目录</h2>
-            {isLoading ? (
-              <div className="loading">加载中...</div>
-            ) : articles.length === 0 ? (
-              <div className="empty">暂无文章</div>
-            ) : (
-              // 未选分类：显示分类列表；已选分类：显示该分类下文章并提供返回分类按钮
-              (selectedCategory === '') ? (
-                <div className="category-list">
-                  <ul>
-                    {categories.map((cat) => (
-                      <li key={cat}>
-                        <button
-                          className="move-btn"
-                          onClick={() => setSelectedCategory(cat)}
-                        >
-                          {cat} <span style={{ marginLeft: 8, color: '#666' }}>({articles.filter(a => (a.category || '未分类') === cat).length})</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <strong>{selectedCategory}</strong>
-                    <button className="move-btn" onClick={() => setSelectedCategory('')}>← 返回分类</button>
-                  </div>
-                  <ul>
-                    {articles.filter(a => (a.category || '未分类') === selectedCategory).length === 0 ? (
-                      <li className="empty">该分类下暂无文章</li>
-                    ) : (
-                      articles.filter(a => (a.category || '未分类') === selectedCategory).map((article, index) => (
-                        <li 
-                          key={article.id}
-                          className={selectedArticle?.id === article.id ? 'active' : ''}
-                        >
-                          <div 
-                            className="article-item"
-                            onClick={() => handleSelectArticle(article.id)}
-                          >
-                            <h3>{article.title}</h3>
-                            <p className="article-meta">
-                              <span>作者: {article.author || '匿名'}</span>
-                              <span>分类: {article.category || '未分类'}</span>
-                              <span>{new Date(article.createTime).toLocaleDateString()}</span>
-                            </p>
-                          </div>
-                          <div className="article-actions">
-                            <button
-                              className="move-btn"
-                              title="上移"
-                              onClick={(e) => { e.stopPropagation(); handleMoveArticle(article.id, 'up'); }}
-                              disabled={index === 0}
-                            >↑</button>
-                            <button
-                              className="move-btn"
-                              title="下移"
-                              onClick={(e) => { e.stopPropagation(); handleMoveArticle(article.id, 'down'); }}
-                              disabled={index === articles.length - 1}
-                            >↓</button>
-                            <button
-                              className="edit-btn"
-                              title="编辑"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedArticle(article);
-                                handleEditArticle(article);
-                              }}
-                            >编辑</button>
-                            <button
-                              className="delete-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteArticle(article.id);
-                              }}
-                            >
-                              删除
-                            </button>
-                          </div>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              )
-            )}
-          </div>
-        )}
-
-        {/* 右侧文章详情/编辑（移动端：未选择时隐藏） */}
-        {(!isMobile || selectedArticle) && (
-          <div className={`article-detail ${editingArticle ? 'editing' : ''}`}>
-          {isMobile && selectedArticle && (
-            <button className="back-btn" onClick={() => setSelectedArticle(null)}>
-              ← 返回
-            </button>
-          )}
-          {selectedArticle ? (
-            <>
-              {!editingArticle ? (
-                <>
-                  <h2>{selectedArticle.title}</h2>
-                  <div className="article-meta">
-                    <span>作者: {selectedArticle.author || '匿名'}</span>
-                    <span>分类: {selectedArticle.category || '未分类'}</span>
-                    <span>创建时间: {new Date(selectedArticle.createTime).toLocaleString()}</span>
-                  </div>
-                  <div className="article-content">
-                    {selectedArticle.content}
-                  </div>
-                  {/* 详情页底部不再显示编辑按钮（编辑在左侧列表中触发） */}
-                </>
-              ) : (
-                // 编辑表单
-                <div className="edit-form">
-                  <h2>编辑文章</h2>
-                  <div className="form-group">
-                    <label>标题 *</label>
-                    <input
-                      type="text"
-                      value={editingArticle.title}
-                      onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>作者</label>
-                    <input
-                      type="text"
-                      value={editingArticle.author}
-                      onChange={(e) => setEditingArticle({ ...editingArticle, author: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>分类</label>
-                    <select
-                      value={editingArticle.category || ''}
-                      onChange={(e) => setEditingArticle({ ...editingArticle, category: e.target.value })}
-                    >
-                      <option value="">未分类</option>
-                      {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                    <div style={{ display: 'flex', marginTop: 6 }}>
-                      <input
-                        type="text"
-                        placeholder="新分类名"
-                        value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
-                      />
-                      <button type="button" className="category-add-btn" onClick={() => {
-                        const cat = newCategory.trim();
-                        if (!cat) return;
-                        const created = handleCreateCategory(cat);
-                        if (created && editingArticle) {
-                          setEditingArticle({ ...editingArticle, category: created });
-                        }
-                      }}>
-                        添加分类并使用
-                      </button>
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label>内容 *</label>
-                    <textarea
-                      value={editingArticle.content}
-                      onChange={(e) => setEditingArticle({ ...editingArticle, content: e.target.value })}
-                      rows={10}
-                    />
-                  </div>
-                  <div className="form-actions">
-                    <button onClick={handleCancelEdit}>取消</button>
-                    <button onClick={handleSaveEdit}>保存</button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="no-selection">
-              <p>请从左侧选择一篇文章查看详情</p>
+        {showSocial ? (
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '15px 20px', background: 'white', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <button 
+                onClick={() => setShowSocial(false)}
+                style={{ 
+                  padding: '8px 16px', 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '5px', 
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'transform 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                ← 返回主界面
+              </button>
+              <h2 style={{ margin: '0 0 0 20px', color: '#333', fontSize: '20px' }}>社交中心</h2>
             </div>
-          )}
+            <SocialPage currentUserId={1} />
+          </div>
+        ) : (
+          <div className="content-split">
+            {/* 左侧列表 */}
+            {(!isMobile || !selectedArticle) && (
+              <div className="article-list">
+                <h2>文章目录</h2>
+                {isLoading ? (
+                  <div className="loading">加载中...</div>
+                ) : articles.length === 0 ? (
+                  <div className="empty">暂无文章</div>
+                ) : selectedCategory === '' ? (
+                  <div className="category-list">
+                    <ul>
+                      {categories.map(cat => (
+                        <li key={cat}>
+                          <button className="move-btn" onClick={() => setSelectedCategory(cat)}>
+                            {cat} <span style={{ marginLeft: 8, color: '#666' }}>({articles.filter(a => (a.category || '未分类') === cat).length})</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <strong>{selectedCategory}</strong>
+                      <button className="move-btn" onClick={() => setSelectedCategory('')}>← 返回分类</button>
+                    </div>
+                    <ul>
+                      {articles.filter(a => (a.category || '未分类') === selectedCategory).length === 0 ? (
+                        <li className="empty">该分类下暂无文章</li>
+                      ) : (
+                        articles.filter(a => (a.category || '未分类') === selectedCategory).map((article, index) => (
+                          <li key={article.id} className={selectedArticle?.id === article.id ? 'active' : ''}>
+                            <div className="article-item" onClick={() => handleSelectArticle(article.id)}>
+                              <h3>{article.title}</h3>
+                              <p className="article-meta">
+                                <span>作者: {article.author || '匿名'}</span>
+                                <span>分类: {article.category || '未分类'}</span>
+                                <span>{new Date(article.createTime).toLocaleDateString()}</span>
+                              </p>
+                            </div>
+                            <div className="article-actions">
+                              <button className="move-btn" title="上移" onClick={(e) => { e.stopPropagation(); handleMoveArticle(article.id, 'up'); }} disabled={index === 0}>↑</button>
+                              <button className="move-btn" title="下移" onClick={(e) => { e.stopPropagation(); handleMoveArticle(article.id, 'down'); }} disabled={index === articles.length - 1}>↓</button>
+                              <button className="edit-btn" title="编辑" onClick={(e) => { e.stopPropagation(); setSelectedArticle(article); handleEditArticle(article); }}>编辑</button>
+                              <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteArticle(article.id); }}>删除</button>
+                            </div>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 右侧文章详情/编辑 */}
+            {(!isMobile || selectedArticle) && (
+              <div className={`article-detail ${editingArticle ? 'editing' : ''}`}>
+                {isMobile && selectedArticle && (
+                  <button className="back-btn" onClick={() => setSelectedArticle(null)}>← 返回</button>
+                )}
+
+                {selectedArticle ? (
+                  <>
+                    {!editingArticle && (
+                      <div>
+                        <h2>{selectedArticle.title}</h2>
+                        <div className="article-meta">
+                          <span>作者: {selectedArticle.author || '匿名'}</span>
+                          <span>分类: {selectedArticle.category || '未分类'}</span>
+                          <span>创建时间: {new Date(selectedArticle.createTime).toLocaleString()}</span>
+                        </div>
+                        <div className="article-content">{selectedArticle.content}</div>
+                      </div>
+                    )}
+
+                    {editingArticle && (
+                      <div className="edit-form">
+                        <h2>编辑文章</h2>
+                        <div className="form-group">
+                          <label>标题 *</label>
+                          <input type="text" value={editingArticle?.title ?? ''} onChange={(e) => setEditingArticle(prev => prev ? { ...prev, title: e.target.value } : prev)} />
+                        </div>
+                        <div className="form-group">
+                          <label>作者</label>
+                          <input type="text" value={editingArticle?.author ?? ''} onChange={(e) => setEditingArticle(prev => prev ? { ...prev, author: e.target.value } : prev)} />
+                        </div>
+                        <div className="form-group">
+                          <label>分类</label>
+                          <select value={editingArticle?.category ?? ''} onChange={(e) => setEditingArticle(prev => prev ? { ...prev, category: e.target.value } : prev)}>
+                            <option value="">未分类</option>
+                            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                          </select>
+                          <div style={{ display: 'flex', marginTop: 6 }}>
+                            <input type="text" placeholder="新分类名" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+                            <button type="button" className="category-add-btn" onClick={() => {
+                              const cat = newCategory.trim();
+                              if (!cat) return;
+                              const created = handleCreateCategory(cat);
+                              if (created) setEditingArticle(prev => prev ? { ...prev, category: created } : prev);
+                            }}>添加分类并使用</button>
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>内容 *</label>
+                          <textarea value={editingArticle?.content ?? ''} onChange={(e) => setEditingArticle(prev => prev ? { ...prev, content: e.target.value } : prev)} rows={10} />
+                        </div>
+                        <div className="form-actions">
+                          <button onClick={handleCancelEdit}>取消</button>
+                          <button onClick={handleSaveEdit}>保存</button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="no-selection"><p>请从左侧选择一篇文章查看详情</p></div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -457,67 +391,34 @@ const MainPage: React.FC = () => {
             <form onSubmit={handleCreateArticle}>
               <div className="form-group">
                 <label>标题 *</label>
-                <input
-                  type="text"
-                  value={newArticle.title}
-                  onChange={(e) => setNewArticle({ ...newArticle, title: e.target.value })}
-                  placeholder="请输入文章标题"
-                  required
-                />
+                <input type="text" value={newArticle.title} onChange={(e) => setNewArticle({ ...newArticle, title: e.target.value })} placeholder="请输入文章标题" required />
               </div>
               <div className="form-group">
                 <label>作者</label>
-                <input
-                  type="text"
-                  value={newArticle.author}
-                  onChange={(e) => setNewArticle({ ...newArticle, author: e.target.value })}
-                  placeholder="请输入作者名称（可选）"
-                />
+                <input type="text" value={newArticle.author} onChange={(e) => setNewArticle({ ...newArticle, author: e.target.value })} placeholder="请输入作者名称（可选）" />
               </div>
               <div className="form-group">
                 <label>分类</label>
-                <select
-                  value={newArticle.category}
-                  onChange={(e) => setNewArticle({ ...newArticle, category: e.target.value })}
-                >
+                <select value={newArticle.category} onChange={(e) => setNewArticle({ ...newArticle, category: e.target.value })}>
                   <option value="">未分类</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <div style={{ display: 'flex', marginTop: 6 }}>
-                  <input
-                    type="text"
-                    placeholder="新分类名"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                  />
+                  <input type="text" placeholder="新分类名" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
                   <button type="button" className="category-add-btn" onClick={() => {
                     const cat = newCategory.trim();
                     if (!cat) return;
                     const created = handleCreateCategory(cat);
-                    if (created) {
-                      setNewArticle({ ...newArticle, category: created });
-                    }
-                  }}>
-                    添加分类并使用
-                  </button>
+                    if (created) setNewArticle({ ...newArticle, category: created });
+                  }}>添加分类并使用</button>
                 </div>
               </div>
               <div className="form-group">
                 <label>内容 *</label>
-                <textarea
-                  value={newArticle.content}
-                  onChange={(e) => setNewArticle({ ...newArticle, content: e.target.value })}
-                  placeholder="请输入文章内容"
-                  rows={10}
-                  required
-                />
+                <textarea value={newArticle.content} onChange={(e) => setNewArticle({ ...newArticle, content: e.target.value })} placeholder="请输入文章内容" rows={10} required />
               </div>
               <div className="form-actions">
-                <button type="button" onClick={() => setShowCreateForm(false)}>
-                  取消
-                </button>
+                <button type="button" onClick={() => setShowCreateForm(false)}>取消</button>
                 <button type="submit">创建</button>
               </div>
             </form>
@@ -525,7 +426,7 @@ const MainPage: React.FC = () => {
         </div>
       )}
 
-      {/* AI 聊天组件 */}
+      {/* AI 聊天 */}
       <AiChat isOpen={showAiChat} onClose={() => setShowAiChat(false)} />
     </div>
   );

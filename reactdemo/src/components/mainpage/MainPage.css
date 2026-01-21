@@ -57,6 +57,22 @@
   box-shadow: 0 4px 12px rgba(238, 90, 36, 0.4);
 }
 
+.social-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.social-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
 .create-btn {
   padding: 10px 20px;
   background: #667eea;
@@ -73,6 +89,13 @@
 }
 
 .main-content {
+  /* 将真正的两栏 Grid 布局放在内部的 .content-split 上，
+     避免当子元素被包裹（如 SocialPage 或 content wrapper）时导致列数错误 */
+  display: block;
+}
+
+/* 内容拆分：左右两栏布局（宽左窄右） */
+.content-split {
   display: grid;
   grid-template-columns: 400px 1fr;
   gap: 20px;
@@ -375,6 +398,12 @@
   }
 
   .main-content {
+    display: block;
+    height: auto;
+    gap: 12px;
+  }
+
+  .content-split {
     display: block;
     height: auto;
     gap: 12px;

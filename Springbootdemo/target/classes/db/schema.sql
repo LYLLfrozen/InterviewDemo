@@ -35,3 +35,17 @@ CREATE TABLE IF NOT EXISTS product (
   status TINYINT NOT NULL DEFAULT 0 COMMENT '商品状态：0=下架，1=上架',
   create_time DATETIME COMMENT '创建时间'
 );
+
+CREATE TABLE IF NOT EXISTS `user` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) DEFAULT NULL,
+  `age` INT DEFAULT NULL,
+  `email` VARCHAR(255) DEFAULT NULL,
+  `phone` VARCHAR(50) DEFAULT NULL,
+  `username` VARCHAR(100) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `status` TINYINT DEFAULT 0 COMMENT '用户状态：0=正常，1=封号/禁用',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_username` (`username`),
+  KEY `idx_user_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
