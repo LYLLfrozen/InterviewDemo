@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api, { userApi } from '../../services/api';
 import './FriendList.css';
 
 interface Friend {
@@ -32,11 +32,7 @@ const FriendList: React.FC<FriendListProps> = ({ currentUserId, onSelectFriend }
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:8080/api/social/friends', {
-        headers: {
-          'User-Id': currentUserId.toString()
-        }
-      });
+      const response = await api.get('/social/friends', { headers: { 'User-Id': currentUserId.toString() } });
       if (response.data.code === 200) {
         const friendsData = response.data.data || [];
         setFriends(friendsData);
@@ -59,11 +55,8 @@ const FriendList: React.FC<FriendListProps> = ({ currentUserId, onSelectFriend }
     const detailsMap = new Map<number, User>();
     for (const friend of friendList) {
       try {
-        // 假设有获取用户信息的接口
-        const response = await axios.get(`http://localhost:8080/user/${friend.friendId}`);
-        if (response.data.code === 200) {
-          detailsMap.set(friend.friendId, response.data.data);
-        }
+        const response = await userApi.getUserById(friend.friendId);
+        if (response.data.code === 200) detailsMap.set(friend.friendId, response.data.data);
       } catch (err) {
         // 如果接口不存在或失败，使用默认用户信息
         console.warn(`获取好友 ${friend.friendId} 信息失败，使用默认信息`, err);

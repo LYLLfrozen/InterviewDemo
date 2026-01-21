@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@CrossOrigin
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -33,49 +34,46 @@ public class UserController {
             return Result.error(errorMsg);
         }
         return Result.success();
-    }
-
-    @PostMapping("/login")
+    }    @PostMapping("/login")
     public Result login(@RequestBody Map<String, String> loginForm) {
         String account = loginForm.get("username");
         String password = loginForm.get("password");
-        String rememberMe = loginForm.get("rememberMe");
         
         String token = userService.login(account, password);
         if (token == null) {
             return Result.error("用户名或密码错误");
         }
-        
-        // 如果用户选择了"记住我"，保存登录信息到Redis
-        if ("true".equals(rememberMe)) {
-            userService.saveRememberedLogin(account, password);
-        }
-        
-        return Result.success(Map.of("token", token));
+          return Result.success(Map.of("token", token));
     }
     
     /**
-     * 获取记住的登录信息
-     * @return
+     * 获取当前登录用户信息
+     * @param authorization Authorization header containing the token
+     * @return 当前用户信息
      */
-    @GetMapping("/remembered-login")
-    public Result getRememberedLogin() {
-        Map<String, String> remembered = userService.getRememberedLogin();
-        if (remembered == null || remembered.isEmpty()) {
-            return Result.success(null);
+    @GetMapping("/current")
+    public Result getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return Result.error("未登录或 token 无效");
         }
-        return Result.success(remembered);
+        
+        String token = authorization.substring(7); // Remove "Bearer " prefix
+        Long userId = userService.getUserIdByToken(token);
+        
+        if (userId == null) {
+            return Result.error("token 已过期或无效");
+        }
+        
+        User user = userService.getById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+        
+        // 返回用户信息，但不返回密码
+        user.setPassword(null);
+        return Result.success(user);
     }
     
-    /**
-     * 清除记住的登录信息
-     * @return
-     */
-    @DeleteMapping("/remembered-login")
-    public Result clearRememberedLogin() {
-        userService.clearRememberedLogin();
-        return Result.success();
-    }
     /**
      * 修改用户
      * @param user

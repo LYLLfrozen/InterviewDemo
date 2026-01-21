@@ -29,7 +29,28 @@ public class SocialServiceImpl implements SocialService {
 
     @Autowired
     private MessageMapper messageMapper;
-
+    
+    @Autowired
+    private com.example.springbootdemo.mapper.UserMapper userMapper;    @Override
+    @Transactional
+    public void sendFriendRequestByUsername(Long fromUserId, String toUsername) {
+        if (toUsername == null || toUsername.trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        
+        // 根据用户名查找目标用户
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.example.springbootdemo.entity.User> wrapper = 
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(com.example.springbootdemo.entity.User::getUsername, toUsername);
+        com.example.springbootdemo.entity.User toUser = userMapper.selectOne(wrapper);
+        
+        if (toUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        
+        sendFriendRequest(fromUserId, toUser.getId());
+    }
+    
     @Override
     @Transactional
     public void sendFriendRequest(Long fromUserId, Long toUserId) {
@@ -146,8 +167,26 @@ public class SocialServiceImpl implements SocialService {
         queryWrapper.eq("user_id", userId)
                    .eq("friend_id", friendId);
         return friendMapper.selectCount(queryWrapper) > 0;
+    }    @Override
+    @Transactional
+    public Message sendMessageByUsername(Long fromUserId, String toUsername, String content) {
+        if (toUsername == null || toUsername.trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        
+        // 根据用户名查找目标用户
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.example.springbootdemo.entity.User> wrapper = 
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(com.example.springbootdemo.entity.User::getUsername, toUsername);
+        com.example.springbootdemo.entity.User toUser = userMapper.selectOne(wrapper);
+        
+        if (toUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        
+        return sendMessage(fromUserId, toUser.getId(), content);
     }
-
+    
     @Override
     @Transactional
     public Message sendMessage(Long fromUserId, Long toUserId, String content) {

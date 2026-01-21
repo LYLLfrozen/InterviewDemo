@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
+import api, { userApi } from '../../services/api';
 import AiChat from '../aichat/AiChat';
 import SocialPage from '../social/SocialPage';
 import './MainPage.css';
@@ -14,6 +14,12 @@ interface Article {
   position?: number;
   createTime: string;
   updateTime: string;
+}
+
+interface User {
+  id: number;
+  username: string;
+  email?: string;
 }
 
 const MainPage: React.FC = () => {
@@ -31,6 +37,7 @@ const MainPage: React.FC = () => {
   });
   const [isMobile, setIsMobile] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // 分类相关
   const [categories, setCategories] = useState<string[]>([]);
@@ -39,6 +46,47 @@ const MainPage: React.FC = () => {
   // 编辑模式
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  // 获取当前用户信息
+  const loadCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('未找到登录 token');
+        return;
+      }
+
+      const response = await userApi.getCurrentUser();
+      const { code, data, msg } = response.data;
+
+      if (code === 200 && data) {
+        setCurrentUser(data as User);
+      } else {
+        // 如果后端提示 token 无效或已过期，清除本地 token 并跳转到登录页
+        const lowerMsg = (msg || '').toString().toLowerCase();
+        if (lowerMsg.includes('token') || lowerMsg.includes('过期') || lowerMsg.includes('无效')) {
+          console.warn('登录信息已失效，正在登出：', msg);
+          localStorage.removeItem('token');
+          localStorage.removeItem('adminToken');
+          alert('登录已过期或无效，请重新登录');
+          navigate('/');
+          return;
+        }
+
+        console.warn('获取当前用户信息失败:', msg);
+      }
+    } catch (error: any) {
+      console.error('获取当前用户信息出错:', error);
+      // 如果返回的错误对象里包含 token 过期提示，也进行清理
+      const message = (error?.response?.data?.msg || error?.message || '').toString().toLowerCase();
+      if (message.includes('token') || message.includes('过期') || message.includes('无效')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        alert('登录已过期或无效，请重新登录');
+        navigate('/');
+      }
+    }
+  };
 
   // 加载文章列表
   const loadArticles = async () => {
@@ -61,8 +109,8 @@ const MainPage: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
+    loadCurrentUser();
     loadArticles();
   }, []);
 
@@ -250,13 +298,25 @@ const MainPage: React.FC = () => {
                   gap: '5px'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-              >
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}              >
                 ← 返回主界面
               </button>
               <h2 style={{ margin: '0 0 0 20px', color: '#333', fontSize: '20px' }}>社交中心</h2>
             </div>
-            <SocialPage currentUserId={1} />
+            {currentUser ? (
+              <SocialPage currentUserId={currentUser.id} />
+            ) : (
+              <div style={{ 
+                padding: '40px', 
+                textAlign: 'center', 
+                background: 'white', 
+                borderRadius: '10px', 
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)' 
+              }}>
+                <p style={{ fontSize: '16px', color: '#666' }}>正在加载用户信息...</p>
+                <p style={{ fontSize: '14px', color: '#999', marginTop: '10px' }}>如果长时间无响应，请尝试重新登录</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="content-split">

@@ -91,48 +91,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 		if (oldUser == null) return false;
 		// newId 不能已存在
 		User exist = getById(newId);
-		if (exist != null) return false;
-		int updated = baseMapper.changeId(oldId, newId);
+		if (exist != null) return false;		int updated = baseMapper.changeId(oldId, newId);
 		return updated > 0;
 	}
-	
-	private static final String REMEMBERED_LOGIN_KEY = "remembered:login:credentials";
-	private static final Duration REMEMBERED_LOGIN_EXPIRATION = Duration.ofDays(30);
-	
+
 	@Override
-	public void saveRememberedLogin(String username, String password) {
-		try {
-			stringRedisTemplate.opsForHash().put(REMEMBERED_LOGIN_KEY, "username", username);
-			stringRedisTemplate.opsForHash().put(REMEMBERED_LOGIN_KEY, "password", password);
-			stringRedisTemplate.expire(REMEMBERED_LOGIN_KEY, REMEMBERED_LOGIN_EXPIRATION);
-		} catch (Exception ex) {
-			logger.warn("Failed to save remembered login to Redis: {}", ex.toString());
+	public User getUserByUsername(String username) {
+		if (username == null || username.trim().isEmpty()) {		return null;
 		}
+		LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+		wrapper.eq(User::getUsername, username);
+		return getOne(wrapper, false);
 	}
-	
+
 	@Override
-	public Map<String, String> getRememberedLogin() {
-		try {
-			Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(REMEMBERED_LOGIN_KEY);
-			if (entries == null || entries.isEmpty()) {
-				return null;
-			}
-			Map<String, String> result = new HashMap<>();
-			result.put("username", (String) entries.get("username"));
-			result.put("password", (String) entries.get("password"));
-			return result;
-		} catch (Exception ex) {
-			logger.warn("Failed to read remembered login from Redis: {}", ex.toString());
+	public Long getUserIdByToken(String token) {
+		if (token == null || token.isEmpty()) {
 			return null;
 		}
-	}
-	
-	@Override
-	public void clearRememberedLogin() {
 		try {
-			stringRedisTemplate.delete(REMEMBERED_LOGIN_KEY);
+			String userIdStr = stringRedisTemplate.opsForValue().get("login:token:" + token);
+			if (userIdStr == null) {
+				return null;
+			}
+			return Long.parseLong(userIdStr);
 		} catch (Exception ex) {
-			logger.warn("Failed to clear remembered login from Redis: {}", ex.toString());
+			logger.warn("Failed to get userId from token: {}", ex.toString());
+			return null;
 		}
 	}
 

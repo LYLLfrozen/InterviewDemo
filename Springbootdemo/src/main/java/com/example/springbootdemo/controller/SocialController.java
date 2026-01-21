@@ -21,25 +21,34 @@ import java.util.Map;
 public class SocialController {
 
     @Autowired
-    private SocialService socialService;
-
-    /**
-     * 发送好友请求
+    private SocialService socialService;    /**
+     * 发送好友请求（通过用户名）
      */
     @PostMapping("/friend-request/send")
-    public Result<?> sendFriendRequest(@RequestBody Map<String, Long> params,
+    public Result<?> sendFriendRequest(@RequestBody Map<String, Object> params,
                                        @RequestHeader(value = "User-Id", required = false) Long currentUserId) {
         try {
-            Long toUserId = params.get("toUserId");
-            if (toUserId == null) {
-                return Result.error("目标用户ID不能为空");
-            }
-            // 实际项目中应从 Redis 或 Session 获取当前登录用户ID
             if (currentUserId == null) {
                 return Result.error("未登录");
             }
-            socialService.sendFriendRequest(currentUserId, toUserId);
-            return Result.success("好友请求已发送");
+            
+            // 支持通过用户名或用户ID发送请求
+            Object toUsernameObj = params.get("toUsername");
+            Object toUserIdObj = params.get("toUserId");
+            
+            if (toUsernameObj != null && !toUsernameObj.toString().trim().isEmpty()) {
+                // 通过用户名发送
+                String toUsername = toUsernameObj.toString().trim();
+                socialService.sendFriendRequestByUsername(currentUserId, toUsername);
+                return Result.success("好友请求已发送");
+            } else if (toUserIdObj != null) {
+                // 通过用户ID发送（兼容旧接口）
+                Long toUserId = Long.valueOf(toUserIdObj.toString());
+                socialService.sendFriendRequest(currentUserId, toUserId);
+                return Result.success("好友请求已发送");
+            } else {
+                return Result.error("请提供目标用户名或用户ID");
+            }
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }
@@ -127,11 +136,10 @@ public class SocialController {
             return Result.success(friends);
         } catch (Exception e) {
             return (Result<List<Friend>>) (Result<?>) Result.error(e.getMessage());
-        }
-    }
+        }    }
 
     /**
-     * 发送消息
+     * 发送消息（支持通过用户名）
      */
     @PostMapping("/message/send")
     public Result<Message> sendMessage(@RequestBody Map<String, Object> params,
@@ -140,12 +148,29 @@ public class SocialController {
             if (currentUserId == null) {
                 return (Result<Message>) (Result<?>) Result.error("未登录");
             }
-            Long toUserId = Long.valueOf(params.get("toUserId").toString());
-            String content = params.get("content").toString();
+            
+            String content = params.get("content") != null ? params.get("content").toString() : null;
             if (content == null || content.trim().isEmpty()) {
                 return (Result<Message>) (Result<?>) Result.error("消息内容不能为空");
             }
-            Message message = socialService.sendMessage(currentUserId, toUserId, content);
+            
+            // 支持通过用户名或用户ID发送消息
+            Object toUsernameObj = params.get("toUsername");
+            Object toUserIdObj = params.get("toUserId");
+            
+            Message message;
+            if (toUsernameObj != null && !toUsernameObj.toString().trim().isEmpty()) {
+                // 通过用户名发送
+                String toUsername = toUsernameObj.toString().trim();
+                message = socialService.sendMessageByUsername(currentUserId, toUsername, content);
+            } else if (toUserIdObj != null) {
+                // 通过用户ID发送（兼容旧接口）
+                Long toUserId = Long.valueOf(toUserIdObj.toString());
+                message = socialService.sendMessage(currentUserId, toUserId, content);
+            } else {
+                return (Result<Message>) (Result<?>) Result.error("请提供目标用户名或用户ID");
+            }
+            
             return Result.success(message);
         } catch (Exception e) {
             return (Result<Message>) (Result<?>) Result.error(e.getMessage());

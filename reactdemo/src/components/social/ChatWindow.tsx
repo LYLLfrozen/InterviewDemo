@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api, { userApi } from '../../services/api';
 import './ChatWindow.css';
 
 interface Message {
@@ -21,9 +21,10 @@ interface ChatWindowProps {
   currentUserId: number;
   friendId: number;
   friendName?: string;
+  onBack?: () => void;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friendName }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friendName, onBack }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,17 +40,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
   // 获取好友信息
   const fetchFriendInfo = async () => {
     try {
-      const response = await axios.get(`http://localhost:8080/user/${friendId}`);
+      const response = await userApi.getUserById(friendId);
       if (response.data.code === 200) {
         setFriend(response.data.data);
       }
     } catch (err) {
-      // 如果接口不存在或失败，使用默认用户信息
+      // 如果接口不存在或失败，使用默认用户信息（不使用类似 用户3 的回退显示）
       console.warn('获取好友信息失败，使用默认信息', err);
       setFriend({
         id: friendId,
-        name: friendName || `用户${friendId}`,
-        username: `user${friendId}`
+        name: friendName || '未知用户',
+        // 如果没有后端返回用户名，则不强行构造 user3 这类用户名，留空使界面不显示 @xxx
+        username: friendName ? friendName.replace(/\s+/g, '') : ''
       });
     }
   };
@@ -57,17 +59,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
   // 获取聊天消息
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(
-        `http://localhost:8080/api/social/message/chat/${friendId}`,
-        {
-          headers: {
-            'User-Id': currentUserId.toString()
-          },
-          params: {
-            limit: 50
-          }
-        }
-      );
+      const response = await api.get(`/social/message/chat/${friendId}`, {
+        headers: { 'User-Id': currentUserId.toString() },
+        params: { limit: 50 }
+      });
       if (response.data.code === 200) {
         setMessages(response.data.data);
         // 标记消息为已读
@@ -86,15 +81,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
     );
     for (const msg of unreadMessages) {
       try {
-        await axios.post(
-          `http://localhost:8080/api/social/message/read/${msg.id}`,
-          {},
-          {
-            headers: {
-              'User-Id': currentUserId.toString()
-            }
-          }
-        );
+        await api.post(`/social/message/read/${msg.id}`, {}, { headers: { 'User-Id': currentUserId.toString() } });
       } catch (err) {
         console.error(`标记消息 ${msg.id} 为已读失败`, err);
       }
@@ -111,18 +98,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post(
-        'http://localhost:8080/api/social/message/send',
-        {
-          toUserId: friendId,
-          content: newMessage
-        },
-        {
-          headers: {
-            'User-Id': currentUserId.toString(),
-            'Content-Type': 'application/json'
-          }
-        }
+      const response = await api.post(
+        '/social/message/send',
+        { toUserId: friendId, content: newMessage },
+        { headers: { 'User-Id': currentUserId.toString(), 'Content-Type': 'application/json' } }
       );
 
       if (response.data.code === 200) {
@@ -184,22 +163,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
       minute: '2-digit'
     });
   };
-
   return (
     <div className="chat-window-container">
       {/* 聊天头部 */}
       <div className="chat-header">
+        {onBack && (
+          <button className="chat-back-btn" onClick={onBack}>
+            ← 返回
+          </button>
+        )}
         <div className="chat-friend-info">
           <div className="chat-friend-avatar">
             {friend?.name?.charAt(0) || friendName?.charAt(0) || '?'}
           </div>
           <div>
             <div className="chat-friend-name">
-              {friend?.name || friendName || `用户${friendId}`}
+              {friend?.name || friendName || '未知用户'}
             </div>
-            <div className="chat-friend-username">
-              @{friend?.username || '未知'}
-            </div>
+            {friend?.username && (
+              <div className="chat-friend-username">@{friend.username}</div>
+            )}
           </div>
         </div>
       </div>

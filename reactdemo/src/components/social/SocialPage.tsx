@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FriendList from './FriendList';
 import FriendRequestComponent from './FriendRequest';
 import ChatWindow from './ChatWindow';
@@ -11,15 +11,30 @@ interface SocialPageProps {
 const SocialPage: React.FC<SocialPageProps> = ({ currentUserId }) => {
   const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<'friends' | 'requests' | 'chat'>('friends');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSelectFriend = (friendId: number) => {
     setSelectedFriendId(friendId);
     setActiveView('chat');
   };
 
+  const handleBackToList = () => {
+    setActiveView('friends');
+    setSelectedFriendId(null);
+  };
+
   return (
     <div className="social-page">
-      <div className="social-sidebar">
+      <div className="social-sidebar" style={{ display: isMobile && activeView === 'chat' ? 'none' : 'flex' }}>
         <div className="social-nav">
           <button
             className={`nav-btn ${activeView === 'friends' ? 'active' : ''}`}
@@ -47,11 +62,12 @@ const SocialPage: React.FC<SocialPageProps> = ({ currentUserId }) => {
         )}
       </div>
 
-      <div className="social-main">
+      <div className={`social-main ${isMobile && activeView === 'chat' ? 'show-chat' : ''}`}>
         {activeView === 'chat' && selectedFriendId ? (
           <ChatWindow
             currentUserId={currentUserId}
             friendId={selectedFriendId}
+            onBack={isMobile ? handleBackToList : undefined}
           />
         ) : (
           <div className="social-placeholder">

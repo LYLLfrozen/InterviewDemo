@@ -11,6 +11,11 @@ import java.util.List;
  */
 public interface SocialService {
     /**
+     * 发送好友请求（通过用户名）
+     */
+    void sendFriendRequestByUsername(Long fromUserId, String toUsername);
+    
+    /**
      * 发送好友请求
      */
     void sendFriendRequest(Long fromUserId, Long toUserId);
@@ -43,8 +48,11 @@ public interface SocialService {
     /**
      * 检查是否为好友关系
      */
-    boolean isFriend(Long userId, Long friendId);
-
+    boolean isFriend(Long userId, Long friendId);    /**
+     * 发送消息（通过用户名）
+     */
+    Message sendMessageByUsername(Long fromUserId, String toUsername, String content);
+    
     /**
      * 发送消息
      */

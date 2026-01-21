@@ -17,31 +17,26 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
   const [formData, setFormData] = useState<LoginFormData>({
     username: '',
     password: '',
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  });  const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // 组件加载时，从后端获取记住的登录信息
+  // 组件加载时，从本地存储获取记住的登录信息
   useEffect(() => {
-    const fetchRememberedLogin = async () => {
-      try {
-        const response = await api.get('/user/remembered-login');
-        const { code, data } = response.data;
-        
-        if (code === 200 && data) {
-          // 自动填充用户名和密码
-          setFormData({
-            username: data.username || '',
-            password: data.password || '',
-          });
-          setRememberMe(true);
-        }
-      } catch (error) {
-        console.error('获取记住的登录信息失败:', error);
+    try {
+      const rememberedUsername = localStorage.getItem('rememberedUsername');
+      const rememberedPassword = localStorage.getItem('rememberedPassword');
+      
+      if (rememberedUsername && rememberedPassword) {
+        // 自动填充用户名和密码
+        setFormData({
+          username: rememberedUsername,
+          password: rememberedPassword,
+        });
+        setRememberMe(true);
       }
-    };
-
-    fetchRememberedLogin();
+    } catch (error) {
+      console.error('获取记住的登录信息失败:', error);
+    }
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,16 +46,15 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
       [name]: value,
     }));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // 调用后端登录接口（使用统一的 api 实例，支持 dev proxy / 同源）
+      // 调用后端登录接口（不再发送 rememberMe 参数）
       const response = await api.post('/user/login', {
-        ...formData,
-        rememberMe: rememberMe.toString(),
+        username: formData.username,
+        password: formData.password,
       });
       const { code, msg, data } = response.data;
 
@@ -70,13 +64,13 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
           localStorage.setItem('token', data.token);
         }
         
-        // 如果用户取消勾选"记住我"，清除后端缓存的登录信息
-        if (!rememberMe) {
-          try {
-            await api.delete('/user/remembered-login');
-          } catch (error) {
-            console.error('清除记住的登录信息失败:', error);
-          }
+        // 根据"记住我"选项，在本地存储或清除登录信息
+        if (rememberMe) {
+          localStorage.setItem('rememberedUsername', formData.username);
+          localStorage.setItem('rememberedPassword', formData.password);
+        } else {
+          localStorage.removeItem('rememberedUsername');
+          localStorage.removeItem('rememberedPassword');
         }
         
         // 登录成功后跳转到主页面

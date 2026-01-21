@@ -551,6 +551,123 @@ Springbootdemo/
 - ✅ `.gitignore` - 已忽略本地配置文件
 - ⚠️ 部署时通过前端界面或 API 配置 API Key
 
+# 社交功能修改说明
+
+## 修改概述
+将添加好友和与好友聊天的方式从使用**用户ID**改为使用**用户名**。
+
+## 后端修改
+
+### 1. UserService 新增方法
+**文件**: `Springbootdemo/src/main/java/com/example/springbootdemo/service/UserService.java`
+
+新增方法：
+```java
+/**
+ * 根据用户名查找用户
+ */
+User getUserByUsername(String username);
+```
+
+### 2. UserServiceImpl 实现新方法
+**文件**: `Springbootdemo/src/main/java/com/example/springbootdemo/service/impl/UserServiceImpl.java`
+
+实现通过用户名查找用户的方法。
+
+### 3. SocialService 新增方法
+**文件**: `Springbootdemo/src/main/java/com/example/springbootdemo/service/SocialService.java`
+
+新增方法：
+```java
+/**
+ * 发送好友请求（通过用户名）
+ */
+void sendFriendRequestByUsername(Long fromUserId, String toUsername);
+
+/**
+ * 发送消息（通过用户名）
+ */
+Message sendMessageByUsername(Long fromUserId, String toUsername, String content);
+```
+
+### 4. SocialServiceImpl 实现新方法
+**文件**: `Springbootdemo/src/main/java/com/example/springbootdemo/service/impl/SocialServiceImpl.java`
+
+- 注入 `UserMapper` 用于查询用户
+- 实现 `sendFriendRequestByUsername`: 先根据用户名查找用户，再调用原有的发送好友请求方法
+- 实现 `sendMessageByUsername`: 先根据用户名查找用户，再调用原有的发送消息方法
+
+### 5. SocialController 修改接口
+**文件**: `Springbootdemo/src/main/java/com/example/springbootdemo/controller/SocialController.java`
+
+#### 发送好友请求接口 `/api/social/friend-request/send`
+- **修改前**: 只接受 `toUserId` 参数
+- **修改后**: 同时支持 `toUsername` 和 `toUserId` 参数
+  - 优先使用 `toUsername`（如果提供）
+  - 否则使用 `toUserId`（向后兼容）
+
+示例请求：
+```json
+{
+  "toUsername": "zhangsan"
+}
+```
+
+#### 发送消息接口 `/api/social/message/send`
+- **修改前**: 只接受 `toUserId` 参数
+- **修改后**: 同时支持 `toUsername` 和 `toUserId` 参数
+  - 优先使用 `toUsername`（如果提供）
+  - 否则使用 `toUserId`（向后兼容）
+
+示例请求：
+```json
+{
+  "toUsername": "lisi",
+  "content": "你好！"
+}
+```
+
+## 前端修改
+
+### 1. FriendRequest 组件
+**文件**: `reactdemo/src/components/social/FriendRequest.tsx`
+
+- 将输入框从 `type="number"` 改为 `type="text"`
+- 将 placeholder 从 "输入用户ID" 改为 "输入用户名"
+- 修改发送请求时的参数从 `toUserId: parseInt(searchUserId)` 改为 `toUsername: searchUserId.trim()`
+- 修改错误提示从 "请输入用户ID" 改为 "请输入用户名"
+
+### 2. ChatWindow 组件
+**不需要修改**，因为：
+- ChatWindow 通过好友列表选择好友，获取的是 friendId
+- 发送消息时仍然使用 toUserId，后端接口向后兼容
+- 如果需要通过用户名聊天，需要额外实现用户搜索功能
+
+## 向后兼容性
+
+所有修改都保持了向后兼容：
+- 原有的通过用户ID添加好友和发送消息的功能仍然可用
+- 新增的通过用户名的功能作为额外选项
+- 如果同时提供用户名和用户ID，优先使用用户名
+
+## 测试建议
+
+1. 测试通过用户名添加好友
+2. 测试通过用户名发送消息（需要先成为好友）
+3. 测试用户名不存在的情况
+4. 测试空用户名的情况
+5. 测试向后兼容：使用原有的用户ID方式
+
+## 数据库说明
+
+本修改**不需要**修改数据库表结构。所有表保持不变：
+- `user` 表已包含 `username` 字段（唯一索引）
+- `friend_request` 和 `friend` 表仍使用用户ID
+- `message` 表仍使用用户ID
+
+用户名只是作为查找用户的一种方式，内部仍然使用用户ID进行关联。
+
+
 ## 联系方式
 
 如有问题，请联系开发团队。

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api, { userApi } from '../../services/api';
 import './FriendRequest.css';
 
 interface FriendRequest {
@@ -33,11 +33,7 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
   // 获取待处理的好友请求
   const fetchPendingRequests = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/social/friend-request/pending', {
-        headers: {
-          'User-Id': currentUserId.toString()
-        }
-      });
+      const response = await api.get('/social/friend-request/pending', { headers: { 'User-Id': currentUserId.toString() } });
       if (response.data.code === 200) {
         setPendingRequests(response.data.data);
         fetchUserDetails(response.data.data.map((req: FriendRequest) => req.fromUserId));
@@ -50,11 +46,7 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
   // 获取已发送的好友请求
   const fetchSentRequests = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/social/friend-request/sent', {
-        headers: {
-          'User-Id': currentUserId.toString()
-        }
-      });
+      const response = await api.get('/social/friend-request/sent', { headers: { 'User-Id': currentUserId.toString() } });
       if (response.data.code === 200) {
         setSentRequests(response.data.data);
         fetchUserDetails(response.data.data.map((req: FriendRequest) => req.toUserId));
@@ -70,10 +62,8 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
     for (const userId of userIds) {
       if (!detailsMap.has(userId)) {
         try {
-          const response = await axios.get(`http://localhost:8080/user/${userId}`);
-          if (response.data.code === 200) {
-            detailsMap.set(userId, response.data.data);
-          }
+          const response = await userApi.getUserById(userId);
+          if (response.data.code === 200) detailsMap.set(userId, response.data.data);
         } catch (err) {
           // 如果接口不存在或失败，使用默认用户信息
           console.warn(`获取用户 ${userId} 信息失败，使用默认信息`, err);
@@ -87,27 +77,17 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
     }
     setUserDetails(detailsMap);
   };
-
   // 发送好友请求
   const sendFriendRequest = async () => {
     if (!searchUserId.trim()) {
-      setError('请输入用户ID');
+      setError('请输入用户名');
       return;
     }
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
     try {
-      const response = await axios.post(
-        'http://localhost:8080/api/social/friend-request/send',
-        { toUserId: parseInt(searchUserId) },
-        {
-          headers: {
-            'User-Id': currentUserId.toString(),
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await api.post('/social/friend-request/send', { toUsername: searchUserId.trim() }, { headers: { 'User-Id': currentUserId.toString(), 'Content-Type': 'application/json' } });
       if (response.data.code === 200) {
         setSuccessMsg('好友请求已发送');
         setSearchUserId('');
@@ -125,15 +105,7 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
   // 接受好友请求
   const acceptRequest = async (requestId: number) => {
     try {
-      const response = await axios.post(
-        `http://localhost:8080/api/social/friend-request/accept/${requestId}`,
-        {},
-        {
-          headers: {
-            'User-Id': currentUserId.toString()
-          }
-        }
-      );
+      const response = await api.post(`/social/friend-request/accept/${requestId}`, {}, { headers: { 'User-Id': currentUserId.toString() } });
       if (response.data.code === 200) {
         setSuccessMsg('已接受好友请求');
         fetchPendingRequests();
@@ -148,15 +120,7 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
   // 拒绝好友请求
   const rejectRequest = async (requestId: number) => {
     try {
-      const response = await axios.post(
-        `http://localhost:8080/api/social/friend-request/reject/${requestId}`,
-        {},
-        {
-          headers: {
-            'User-Id': currentUserId.toString()
-          }
-        }
-      );
+      const response = await api.post(`/social/friend-request/reject/${requestId}`, {}, { headers: { 'User-Id': currentUserId.toString() } });
       if (response.data.code === 200) {
         setSuccessMsg('已拒绝好友请求');
         fetchPendingRequests();
@@ -202,16 +166,15 @@ const FriendRequestComponent: React.FC<FriendRequestProps> = ({ currentUserId })
   return (
     <div className="friend-request-container">
       <h2>好友请求</h2>
-      
-      {/* 发送好友请求 */}
+        {/* 发送好友请求 */}
       <div className="send-request-section">
         <h3>添加好友</h3>
         <div className="send-request-form">
           <input
-            type="number"
+            type="text"
             value={searchUserId}
             onChange={(e) => setSearchUserId(e.target.value)}
-            placeholder="输入用户ID"
+            placeholder="输入用户名"
             className="user-id-input"
           />
           <button 

@@ -15,17 +15,14 @@ public interface UserService extends IService<User> {
 	boolean changeId(Long oldId, Long newId);
 	
 	/**
-	 * 保存记住的登录信息到Redis
+	 * 根据用户名查找用户
 	 */
-	void saveRememberedLogin(String username, String password);
+	User getUserByUsername(String username);
 	
 	/**
-	 * 获取记住的登录信息
+	 * 根据 token 获取用户 ID
+	 * @param token 登录 token
+	 * @return 用户 ID，如果 token 无效则返回 null
 	 */
-	Map<String, String> getRememberedLogin();
-	
-	/**
-	 * 清除记住的登录信息
-	 */
-	void clearRememberedLogin();
+	Long getUserIdByToken(String token);
 }

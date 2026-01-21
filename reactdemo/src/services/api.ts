@@ -81,12 +81,16 @@ export const userApi = {
   deleteUser: (id: string | number) => {
     return api.delete(`/user/${id}`);
   },
-
   // 分页查询用户
   getUsersByPage: (pageNum: number, pageSize: number) => {
     return api.get('/user/page', {
       params: { pageNum, pageSize }
     });
+  },
+
+  // 获取当前登录用户信息
+  getCurrentUser: () => {
+    return api.get('/user/current');
   },
 };
 
