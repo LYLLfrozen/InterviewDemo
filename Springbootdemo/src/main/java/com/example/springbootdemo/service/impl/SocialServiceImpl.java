@@ -176,7 +176,9 @@ public class SocialServiceImpl implements SocialService {
         QueryWrapper<Friend> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId)
                    .eq("friend_id", friendId);
-        return friendMapper.selectCount(queryWrapper) > 0;
+        long count = friendMapper.selectCount(queryWrapper);
+        System.out.println("检查好友关系: userId=" + userId + ", friendId=" + friendId + ", count=" + count);
+        return count > 0;
     }    @Override
     @Transactional
     public Message sendMessageByUsername(Long fromUserId, String toUsername, String content) {
@@ -216,13 +218,20 @@ public class SocialServiceImpl implements SocialService {
     
     @Override
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "chatMessages", allEntries = true),
-        @CacheEvict(value = "unreadCount", key = "#toUserId")
-    })
+    // 移除缓存清理注解，因为已经不使用聊天消息缓存了
+    @CacheEvict(value = "unreadCount", key = "#toUserId")
     public Message sendMessage(Long fromUserId, Long toUserId, String content) {
+        System.out.println("=== 发送消息 ===");
+        System.out.println("发送者ID: " + fromUserId);
+        System.out.println("接收者ID: " + toUserId);
+        System.out.println("消息内容: " + content);
+        
         // 检查是否为好友关系
-        if (!isFriend(fromUserId, toUserId)) {
+        boolean areFriends = isFriend(fromUserId, toUserId);
+        System.out.println("是否为好友关系: " + areFriends);
+        
+        if (!areFriends) {
+            System.err.println("❌ 错误：用户 " + fromUserId + " 和 " + toUserId + " 不是好友关系");
             throw new RuntimeException("只能向好友发送消息");
         }
 
@@ -233,6 +242,8 @@ public class SocialServiceImpl implements SocialService {
         message.setIsRead(0);
         message.setTimestamp(LocalDateTime.now());
         messageMapper.insert(message);
+        
+        System.out.println("✅ 消息发送成功，消息ID: " + message.getId());
         return message;
     }
 
@@ -253,7 +264,8 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override
-    @Cacheable(value = "chatMessages", key = "#userId + ':' + #friendId + ':' + #limit")
+    // 移除缓存，确保总是获取最新消息
+    // @Cacheable(value = "chatMessages", key = "#userId + ':' + #friendId + ':' + #limit")
     public List<Message> getChatMessages(Long userId, Long friendId, Integer limit) {
         if (limit == null || limit <= 0) {
             limit = 50;

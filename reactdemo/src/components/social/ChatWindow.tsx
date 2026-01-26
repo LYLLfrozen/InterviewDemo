@@ -31,10 +31,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
   const [error, setError] = useState<string | null>(null);
   const [friend, setFriend] = useState<User | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const justSentMessageIds = useRef<Set<number>>(new Set()); // 跟踪刚发送的消息ID
 
-  // 滚动到底部
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // 消息容器引用与底部状态标记
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef<boolean>(true);
+
+  // 滚动到底部（只有当用户在底部或强制时才滚动）
+  const scrollToBottom = (force: boolean = false) => {
+    if (force || isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // 滚动事件处理：更新是否在底部的标记
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const threshold = 100; // px，接近底部的容忍距离
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+    isAtBottomRef.current = atBottom;
   };
 
   // 获取好友信息
@@ -64,10 +80,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
         params: { limit: 50 }
       });
       if (response.data.code === 200) {
-        setMessages(response.data.data);
+        const serverMessages = response.data.data;
+        // 智能合并：保留刚发送的消息（如果服务器还没返回）
+        setMessages(prevMessages => {
+          // 找出刚发送但服务器还没返回的消息
+          const localOnlyMessages = prevMessages.filter(msg => 
+            justSentMessageIds.current.has(msg.id) && 
+            !serverMessages.find((sm: Message) => sm.id === msg.id)
+          );
+          // 合并服务器消息和本地临时消息
+          const merged = [...serverMessages, ...localOnlyMessages];
+          // 清理已经在服务器列表中的消息ID
+          serverMessages.forEach((sm: Message) => {
+            justSentMessageIds.current.delete(sm.id);
+          });
+          return merged;
+        });
         // 标记消息为已读
-        markMessagesAsRead(response.data.data);
-        setTimeout(scrollToBottom, 100);
+        markMessagesAsRead(serverMessages);
+        setTimeout(() => scrollToBottom(false), 100);
       }
     } catch (err: any) {
       console.error('获取消息失败', err);
@@ -97,22 +128,60 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
 
     setLoading(true);
     setError(null);
+    const messageContent = newMessage.trim();
+    
+    console.log('准备发送消息:', {
+      fromUserId: currentUserId,
+      toUserId: friendId,
+      content: messageContent
+    });
+    
     try {
       const response = await api.post(
         '/social/message/send',
-        { toUserId: friendId, content: newMessage },
+        { toUserId: friendId, content: messageContent },
         { headers: { 'User-Id': currentUserId.toString(), 'Content-Type': 'application/json' } }
       );
 
+      console.log('服务器响应:', response.data);
+
       if (response.data.code === 200) {
+        console.log('✅ 消息发送成功');
+        
+        // 发送成功后，立即将后端返回的消息添加到列表
+        const returnedMessage = response.data.data;
+        if (returnedMessage && returnedMessage.id) {
+          // 标记这是刚发送的消息，防止轮询时被删除
+          justSentMessageIds.current.add(returnedMessage.id);
+          // 5秒后清理标记（给服务器足够时间同步）
+          setTimeout(() => {
+            justSentMessageIds.current.delete(returnedMessage.id);
+          }, 5000);
+          
+          // 使用后端返回的完整消息对象
+          setMessages(prev => [...prev, returnedMessage]);
+          console.log('✅ 消息已添加到列表:', returnedMessage);
+        } else {
+          console.warn('⚠️ 后端返回的消息对象无效:', returnedMessage);
+        }
         setNewMessage('');
-        // 立即刷新消息列表
-        fetchMessages();
+        // 立即触发一次消息获取，确保对方能快速看到
+        setTimeout(() => fetchMessages(), 500);
+        // 滚动到底部显示新消息（发送时强制滚动）
+        setTimeout(() => scrollToBottom(true), 100);
       } else {
-        setError(response.data.msg || '发送失败');
+        const errorMsg = response.data.msg || '发送失败';
+        console.error('❌ 发送消息失败:', errorMsg);
+        setError(errorMsg);
       }
     } catch (err: any) {
-      setError(err.response?.data?.msg || err.message || '发送失败');
+      const errorMsg = err.response?.data?.msg || err.message || '发送失败';
+      console.error('❌ 发送消息异常:', {
+        error: err,
+        response: err.response?.data,
+        message: errorMsg
+      });
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -129,13 +198,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
   useEffect(() => {
     fetchFriendInfo();
     fetchMessages();
-    // 轮询获取新消息
-    const interval = setInterval(fetchMessages, 3000); // 每3秒获取一次
+    // 轮询获取新消息（保留轮询但降低频率，且不强制滚动）
+    const interval = setInterval(fetchMessages, 1500); // 每1.5秒获取一次
     return () => clearInterval(interval);
   }, [friendId, currentUserId]);
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(false);
   }, [messages]);
 
   // 清除错误消息
@@ -188,7 +257,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUserId, friendId, friend
       </div>
 
       {/* 消息列表 */}
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesContainerRef} onScroll={handleMessagesScroll}>
         {messages.length === 0 ? (
           <div className="empty-chat">
             <p>暂无聊天记录，开始聊天吧！</p>

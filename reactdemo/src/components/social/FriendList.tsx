@@ -14,6 +14,8 @@ interface User {
   name: string;
   username: string;
   status: number;
+  // 可选的在线标记，由后端在返回用户详情时附加
+  online?: boolean;
 }
 
 interface FriendListProps {
@@ -104,8 +106,8 @@ const FriendList: React.FC<FriendListProps> = ({ currentUserId, onSelectFriend }
                   @{userInfo?.username || '未知'}
                 </div>
               </div>
-              <div className={`friend-status ${userInfo?.status === 0 ? 'online' : 'offline'}`}>
-                {userInfo?.status === 0 ? '在线' : '离线'}
+              <div className={`friend-status ${(userInfo?.online !== undefined ? (userInfo.online ? 'online' : 'offline') : (userInfo?.status === 0 ? 'online' : 'offline'))}`}>
+                {(userInfo?.online !== undefined ? (userInfo.online ? '在线' : '离线') : (userInfo?.status === 0 ? '在线' : '离线'))}
               </div>
             </li>
           );

@@ -125,4 +125,51 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 		}
 	}
 
+	@Override
+	public boolean invalidateUserSessions(Long userId) {
+		if (userId == null) return false;
+		try {
+			// 获取所有 login token 键（格式：login:token:<token>）并删除值等于 userId 的键
+			java.util.Set<String> keys = stringRedisTemplate.keys("login:token:*");
+			if (keys == null || keys.isEmpty()) return true;
+			for (String key : keys) {
+				try {
+					String val = stringRedisTemplate.opsForValue().get(key);
+					if (val != null && val.equals(String.valueOf(userId))) {
+						stringRedisTemplate.delete(key);
+					}
+				} catch (Exception ex) {
+					logger.warn("Failed processing redis key {}: {}", key, ex.toString());
+				}
+			}
+			return true;
+		} catch (Exception ex) {
+			logger.warn("Failed to invalidate user sessions for {}: {}", userId, ex.toString());
+			return false;
+		}
+	}
+
+	@Override
+	public boolean isUserOnline(Long userId) {
+		if (userId == null) return false;
+		try {
+			java.util.Set<String> keys = stringRedisTemplate.keys("login:token:*");
+			if (keys == null || keys.isEmpty()) return false;
+			for (String key : keys) {
+				try {
+					String val = stringRedisTemplate.opsForValue().get(key);
+					if (val != null && val.equals(String.valueOf(userId))) {
+						return true;
+					}
+				} catch (Exception ex) {
+					logger.warn("Failed processing redis key {}: {}", key, ex.toString());
+				}
+			}
+			return false;
+		} catch (Exception ex) {
+			logger.warn("Failed to check online status for {}: {}", userId, ex.toString());
+			return false;
+		}
+	}
+
 }

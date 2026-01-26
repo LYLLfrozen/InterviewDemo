@@ -91,7 +91,25 @@ public class UserController {
      */
     @GetMapping("/{id}")
     public Result getById(@PathVariable Long id) {
-        return Result.success(userService.getById(id));
+        User user = userService.getById(id);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+        // 不返回密码
+        user.setPassword(null);
+
+        // 构造返回对象，附带 online 字段（基于 Redis token）以便前端判断在线状态
+        boolean online = userService.isUserOnline(id);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("id", user.getId());
+        result.put("name", user.getName());
+        result.put("age", user.getAge());
+        result.put("email", user.getEmail());
+        result.put("phone", user.getPhone());
+        result.put("username", user.getUsername());
+        result.put("status", user.getStatus());
+        result.put("online", online);
+        return Result.success(result);
     }
     /**
      * 查询所有用户
@@ -126,6 +144,39 @@ public class UserController {
     @GetMapping("/page")
     public Result page(@RequestParam(defaultValue = "1") Integer pageNum,@RequestParam(defaultValue = "10") Integer pageSize) {
         return Result.success(userService.page(new Page<>(pageNum, pageSize)));
+    }
+
+    /**
+     * 强制下线用户（根据 userId 或 username）
+     * 请求示例：POST /user/force-logout  body: {"userId":123} 或 {"username":"WHO"}
+     */
+    @PostMapping("/force-logout")
+    public Result forceLogout(@RequestBody Map<String, Object> body) {
+        try {
+            Object oUserId = body.get("userId");
+            Object oUsername = body.get("username");
+            Long userId = null;
+            if (oUserId != null) {
+                userId = Long.parseLong(oUserId.toString());
+            } else if (oUsername != null) {
+                String username = oUsername.toString();
+                User u = userService.getUserByUsername(username);
+                if (u == null) {
+                    return Result.error("用户不存在");
+                }
+                userId = u.getId();
+            } else {
+                return Result.error("请提供 userId 或 username");
+            }
+
+            boolean ok = userService.invalidateUserSessions(userId);
+            if (!ok) return Result.error("下线操作失败");
+            return Result.success("已强制下线用户");
+        } catch (NumberFormatException ex) {
+            return Result.error("userId 格式错误");
+        } catch (Exception ex) {
+            return Result.error(ex.getMessage());
+        }
     }
 
         /**
