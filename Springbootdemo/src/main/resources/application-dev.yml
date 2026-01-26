@@ -3,18 +3,55 @@ server:
   servlet:
     context-path: /api
   port: 8080
+  tomcat:
+    # Tomcat 线程池配置 - 支持高并发
+    max-threads: 500                    # 最大工作线程数，支持 500 并发请求处理
+    min-spare-threads: 50               # 最小空闲线程数
+    accept-count: 200                   # 等待队列长度
+    max-connections: 10000              # 最大连接数
+    connection-timeout: 20000           # 连接超时 20 秒
+    threads:
+      max: 500
+      min-spare: 50
+
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/0813-demo?allowPublicKeyRetrieval=true&useUnicode=true&useSSL=false&characterEncoding=utf8
+    url: jdbc:mysql://localhost:3306/0813-demo?allowPublicKeyRetrieval=true&useUnicode=true&useSSL=false&characterEncoding=utf8&rewriteBatchedStatements=true
     username: root
     password: root
+    # Hikari 连接池配置 - 优化数据库连接
+    hikari:
+      maximum-pool-size: 80             # 最大连接数（根据数据库负载调整）
+      minimum-idle: 20                  # 最小空闲连接
+      connection-timeout: 30000         # 连接超时 30 秒
+      idle-timeout: 600000              # 空闲超时 10 分钟
+      max-lifetime: 1800000             # 连接最大生命周期 30 分钟
+      connection-test-query: SELECT 1   # 连接测试查询
+      pool-name: HikariPool-Dev
+      
   data:
     redis:
       host: localhost
       port: 6379
       password:
       database: 0
+      # Redis 连接池配置
+      lettuce:
+        pool:
+          max-active: 200               # 最大活跃连接
+          max-idle: 50                  # 最大空闲连接
+          min-idle: 10                  # 最小空闲连接
+          max-wait: 3000                # 最大等待时间 3 秒
+        shutdown-timeout: 100ms
+      timeout: 3000                     # 操作超时 3 秒
+      
+  # 缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000              # 缓存过期时间 10 分钟
+      cache-null-values: false          # 不缓存空值
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
 

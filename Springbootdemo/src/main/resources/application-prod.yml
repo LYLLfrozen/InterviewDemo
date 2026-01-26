@@ -2,3 +2,50 @@ server:
   servlet:
     context-path: /api
   port: 9090
+  tomcat:
+    # 生产环境 Tomcat 线程池配置
+    max-threads: 500
+    min-spare-threads: 50
+    accept-count: 300
+    max-connections: 10000
+    connection-timeout: 20000
+    threads:
+      max: 500
+      min-spare: 50
+
+spring:
+  datasource:
+    # 生产环境数据库配置（需根据实际情况修改）
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://your-prod-db-host:3306/your-prod-db?useUnicode=true&useSSL=true&characterEncoding=utf8&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    hikari:
+      maximum-pool-size: 100
+      minimum-idle: 30
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+      pool-name: HikariPool-Prod
+      
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 300
+          max-idle: 100
+          min-idle: 20
+          max-wait: 3000
+        shutdown-timeout: 100ms
+      timeout: 3000
+      
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+      cache-null-values: false

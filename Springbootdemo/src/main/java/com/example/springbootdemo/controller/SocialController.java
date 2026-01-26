@@ -143,7 +143,8 @@ public class SocialController {
      */
     @PostMapping("/message/send")
     public Result<Message> sendMessage(@RequestBody Map<String, Object> params,
-                                       @RequestHeader(value = "User-Id", required = false) Long currentUserId) {
+                                       @RequestHeader(value = "User-Id", required = false) Long currentUserId,
+                                       @RequestHeader(value = "X-Load-Test", required = false) String loadTestHeader) {
         try {
             if (currentUserId == null) {
                 return (Result<Message>) (Result<?>) Result.error("未登录");
@@ -158,15 +159,25 @@ public class SocialController {
             Object toUsernameObj = params.get("toUsername");
             Object toUserIdObj = params.get("toUserId");
             
+            // 判断是否为压测写入（若 header X-Load-Test=true，则不会持久化写入数据库）
+            boolean isLoadTest = false;
+            if (loadTestHeader != null && loadTestHeader.equalsIgnoreCase("true")) {
+                isLoadTest = true;
+            }
+            Object testFlag = params.get("test");
+            if (testFlag instanceof Boolean && (Boolean) testFlag) {
+                isLoadTest = true;
+            }
+
             Message message;
             if (toUsernameObj != null && !toUsernameObj.toString().trim().isEmpty()) {
                 // 通过用户名发送
                 String toUsername = toUsernameObj.toString().trim();
-                message = socialService.sendMessageByUsername(currentUserId, toUsername, content);
+                message = socialService.sendMessageByUsername(currentUserId, toUsername, content, !isLoadTest);
             } else if (toUserIdObj != null) {
                 // 通过用户ID发送（兼容旧接口）
                 Long toUserId = Long.valueOf(toUserIdObj.toString());
-                message = socialService.sendMessage(currentUserId, toUserId, content);
+                message = socialService.sendMessage(currentUserId, toUserId, content, !isLoadTest);
             } else {
                 return (Result<Message>) (Result<?>) Result.error("请提供目标用户名或用户ID");
             }

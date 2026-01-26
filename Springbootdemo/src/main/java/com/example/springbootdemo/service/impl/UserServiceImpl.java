@@ -7,6 +7,8 @@ import com.example.springbootdemo.entity.User;
 import com.example.springbootdemo.mapper.UserMapper;
 import com.example.springbootdemo.service.UserService;
 import jakarta.annotation.Resource;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +49,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 	}
 
 	@Override
+	@CacheEvict(value = "user", key = "'username:' + #user.username")
 	public String register(User user) {
 		LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
 		queryWrapper.eq(User::getUsername, user.getUsername());
@@ -96,6 +99,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 	}
 
 	@Override
+	@Cacheable(value = "user", key = "'username:' + #username", unless = "#result == null")
 	public User getUserByUsername(String username) {
 		if (username == null || username.trim().isEmpty()) {		return null;
 		}

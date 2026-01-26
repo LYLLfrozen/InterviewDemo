@@ -59,6 +59,20 @@ public interface SocialService {
     Message sendMessage(Long fromUserId, Long toUserId, String content);
 
     /**
+     * 发送消息（可选择是否持久化）
+     * @param fromUserId 发送者
+     * @param toUserId 接收者
+     * @param content 消息内容
+     * @param persist 是否写入数据库（压测时可设为 false）
+     */
+    Message sendMessage(Long fromUserId, Long toUserId, String content, boolean persist);
+
+    /**
+     * 通过用户名发送消息（可选择是否持久化）
+     */
+    Message sendMessageByUsername(Long fromUserId, String toUsername, String content, boolean persist);
+
+    /**
      * 获取与某个用户的聊天消息列表
      */
     List<Message> getChatMessages(Long userId, Long friendId, Integer limit);

@@ -9,6 +9,9 @@ import com.example.springbootdemo.mapper.FriendRequestMapper;
 import com.example.springbootdemo.mapper.MessageMapper;
 import com.example.springbootdemo.service.SocialService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,6 +88,11 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "friendList", key = "#friendRequest.fromUserId"),
+        @CacheEvict(value = "friendList", key = "#friendRequest.toUserId"),
+        @CacheEvict(value = "friendRequest", key = "#userId")
+    })
     public void acceptFriendRequest(Long requestId, Long userId) {
         FriendRequest friendRequest = friendRequestMapper.selectById(requestId);
         if (friendRequest == null) {
@@ -137,6 +145,7 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override
+    @Cacheable(value = "friendRequest", key = "#userId")
     public List<FriendRequest> getPendingFriendRequests(Long userId) {
         QueryWrapper<FriendRequest> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("to_user_id", userId)
@@ -154,6 +163,7 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override
+    @Cacheable(value = "friendList", key = "#userId")
     public List<Friend> getFriendList(Long userId) {
         QueryWrapper<Friend> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId)
@@ -189,6 +199,27 @@ public class SocialServiceImpl implements SocialService {
     
     @Override
     @Transactional
+    public Message sendMessageByUsername(Long fromUserId, String toUsername, String content, boolean persist) {
+        if (toUsername == null || toUsername.trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        // 根据用户名查找目标用户
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.example.springbootdemo.entity.User> wrapper = 
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(com.example.springbootdemo.entity.User::getUsername, toUsername);
+        com.example.springbootdemo.entity.User toUser = userMapper.selectOne(wrapper);
+        if (toUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        return sendMessage(fromUserId, toUser.getId(), content, persist);
+    }
+    
+    @Override
+    @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "chatMessages", allEntries = true),
+        @CacheEvict(value = "unreadCount", key = "#toUserId")
+    })
     public Message sendMessage(Long fromUserId, Long toUserId, String content) {
         // 检查是否为好友关系
         if (!isFriend(fromUserId, toUserId)) {
@@ -206,6 +237,23 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override
+    public Message sendMessage(Long fromUserId, Long toUserId, String content, boolean persist) {
+        if (!persist) {
+            // 压测模式：不持久化，仅返回构造的消息对象
+            Message message = new Message();
+            message.setFromUserId(fromUserId);
+            message.setToUserId(toUserId);
+            message.setContent(content);
+            message.setIsRead(0);
+            message.setTimestamp(LocalDateTime.now());
+            return message;
+        }
+        // persist == true：调用原有持久化实现（包含缓存清理注解）
+        return sendMessage(fromUserId, toUserId, content);
+    }
+
+    @Override
+    @Cacheable(value = "chatMessages", key = "#userId + ':' + #friendId + ':' + #limit")
     public List<Message> getChatMessages(Long userId, Long friendId, Integer limit) {
         if (limit == null || limit <= 0) {
             limit = 50;
@@ -225,6 +273,7 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override
+    @Cacheable(value = "unreadCount", key = "#userId")
     public int getUnreadCount(Long userId) {
         QueryWrapper<Message> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("to_user_id", userId)
@@ -234,6 +283,7 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "unreadCount", key = "#userId")
     public void markAsRead(Long messageId, Long userId) {
         Message message = messageMapper.selectById(messageId);
         if (message == null) {
